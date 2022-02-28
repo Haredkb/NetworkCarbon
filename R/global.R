@@ -18,7 +18,6 @@ library(ggraph) #network graph pretty
 library(lubridate)
 library(dplyr)         # general data manipulation and cleaning
 #library(magick) #create animation
-source("../R/Network_MB_Analysis_Functions.R")
+source("R/igraphNetwork_MB.R")
 
 
-net <- graph.data.frame(d=edges_37,vertices=nodes_37,directed = T)
