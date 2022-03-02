@@ -31,7 +31,7 @@
   # Function to implement the C mass-balance model:
     solveMB <- function(network){
       ##debug
-      network <- net#net_BF
+      #network <- net#net_BF
       # Define input parameters:
       
       # Inflow discharge from local catchment (m3 d-1):
@@ -96,40 +96,41 @@
         # Calculate reach hydraulic load (m d-1): double check day versus second
         V(network)$HL[i] <- V(network)$Qout[i]/(V(network)$width_m[i]*length_reach)
         
-        # Define carbon inflows/outflows for each reach (g d-1)
-        # Carbon inflow from local catchment (mg d-1):
-        #groundwater
-        V(network)$ClocalGW_gd[i] <- (V(network)$Qlocal[i]*V(network)$DOC_gw[i])/1000#m3/D * mg/m3
-        #POC, sum direct input and lateral - assume direct for full width 
-        V(network)$ClocalLit_gd[i] <- V(network)$C_in_gmd[i]*length_reach + V(network)$C_in_gm2d[i]*length_reach*V(network)$width_m[i]#m3/D * mg/m3
-        ###HOW TO THINK ABOUT THIS IN AS FAR AS TRANSFER DOWNSTREAM - WILL LIKELY NOT INCLUDE AND INCLUDE LITTER BREAKDOWN HERE 
+        # # Define carbon inflows/outflows for each reach (g d-1)
+        # # Carbon inflow from local catchment (mg d-1):
+        # #groundwater
+        # V(network)$ClocalGW_gd[i] <- (V(network)$Qlocal[i]*V(network)$DOC_gw[i])/1000#m3/D * mg/m3
+        # #POC, sum direct input and lateral - assume direct for full width 
+        # V(network)$ClocalLit_gd[i] <- V(network)$C_in_gmd[i]*length_reach + V(network)$C_in_gm2d[i]*length_reach*V(network)$width_m[i]#m3/D * mg/m3
+        # ###HOW TO THINK ABOUT THIS IN AS FAR AS TRANSFER DOWNSTREAM - WILL LIKELY NOT INCLUDE AND INCLUDE LITTER BREAKDOWN HERE 
         
         
-        ## TOTAL LOCAL CARBON LOAD
-        V(network)$Clocal[i] <- V(network)$ClocalGW_gd[i] # ADD ALL ADDITIONAL TRANSPORTED LOADS
-        
-        # Carbon inflow from upstream network (g d-1):
-        if(length(up)>0){
-          V(network)$Cnet[i] <- sum(V(network)$Cout[up])
-          V(network)$Cnet_gross[i] <- sum(V(network)$Cout_gross[up])
-        } 
-        
-        #Gross gain of carbon load to downstream reach (g d-1):
-        V(network)$Cout_gross[i] <- V(network)$ClocalGW_gd[i] + V(network)$Cnet_gross[i]
-        
-        # Exported carbon load to downstream reach (g d-1):
-        V(network)$Cout[i] <- V(network)$Clocal[i] + V(network)$Cnet[i] - 
-          ((V(network)$Clocal[i] + V(network)$Cnet[i])*(1-exp(-V(network)$vf[i]/V(network)$HL[i])))
-        
-        # Calculate fraction C lost
-        V(network)$Clost[i] <- 1-(V(network)$Cout[i]/(V(network)$Clocal[i] + V(network)$Cnet[i]))
-      }
+      #   ## TOTAL LOCAL CARBON LOAD
+      #   V(network)$Clocal[i] <- V(network)$ClocalGW_gd[i] # ADD ALL ADDITIONAL TRANSPORTED LOADS
+      #   
+      #   # Carbon inflow from upstream network (g d-1):
+      #   if(length(up)>0){
+      #     V(network)$Cnet[i] <- sum(V(network)$Cout[up])
+      #     V(network)$Cnet_gross[i] <- sum(V(network)$Cout_gross[up])
+      #   } 
+      #   
+      #   #Gross gain of carbon load to downstream reach (g d-1):
+      #   V(network)$Cout_gross[i] <- V(network)$ClocalGW_gd[i] + V(network)$Cnet_gross[i]
+      #   
+      #   # Exported carbon load to downstream reach (g d-1):
+      #   V(network)$Cout[i] <- V(network)$Clocal[i] + V(network)$Cnet[i] - 
+      #     ((V(network)$Clocal[i] + V(network)$Cnet[i])*(1-exp(-V(network)$vf[i]/V(network)$HL[i])))
+      #   
+      #   # Calculate fraction C lost
+      #   V(network)$Clost[i] <- 1-(V(network)$Cout[i]/(V(network)$Clocal[i] + V(network)$Cnet[i]))
+      # }
       
+      }
       # Get list with attributes
       out <- get.vertex.attribute(network)
       
       # Calculate proportion C removed in the network:r
-      out$Prop_C_lost <- 1-(V(network)$Cout[length(V(network))]/sum(V(network)$Clocal))
+      # out$Prop_C_lost <- 1-(V(network)$Cout[length(V(network))]/sum(V(network)$Clocal))
       
       # Export network:
       return(out)
