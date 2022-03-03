@@ -72,7 +72,7 @@
       
       }
       # Get list with attributes
-      out <- get.vertex.attribute(network)
+      out <- network#get.vertex.attribute(network)
       
       # Export network:
       return(out)
