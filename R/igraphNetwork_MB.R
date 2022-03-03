@@ -29,7 +29,7 @@
 ## ---------- Functions used in the mass balance model --------- ##
 
   # Function to implement the C mass-balance model:
-    solveMB <- function(network){
+    solveMB_C <- function(network){
       ##debug
       network <- net#net_BF
       # Define input parameters:

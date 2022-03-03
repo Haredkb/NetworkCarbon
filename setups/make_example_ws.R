@@ -1,21 +1,20 @@
 #make small wateshed
-
+library(dplyr)
+library(purrr)
+library(igraph)
 #load data from data file 
 
 ws <- "WS37" #choosen due to sizze
 
-n <- nodes %>%
-  dplyr::filter()
-
-
+#read in entire coweeta network files
 rds_files <- list.files("data", pattern = ".RDS") %>%
   file.path("data", .) %>%
   map(readRDS)
 
-nodes <- rds_files[[7]]
+nodes <- rds_files[[8]]
 edges <- rds_files[[3]]
 
-
+#filter nodes that are withiin the watershed
 nodes_37 <- nodes %>%
   dplyr::filter(n_lscp_name == ws)
 
