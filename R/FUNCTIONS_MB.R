@@ -38,7 +38,7 @@
 
         #length attrbuted to reach
         length_reach <- sum(e_ID$length_m)
-        # #no edges contributing to initial node - should these be 0 or 10? 
+        # #no edges contributing to initial node - should these be 0 or 10? These are only summing incident, so all total length upstream will be accounted for via the total calculation moving downgradient
         length_reach <- ifelse(length_reach == 0, 10, length_reach) # locations within any edges in are springs and thus have 10 meter contributing
         # 
         
@@ -47,7 +47,7 @@
         
         # Find neighboring reaches upstream that flow in to the reach:
         up <- igraph::neighbors(network, i,mode=c("in")) #only single up
-        up.all.nodes <- head(unlist(ego(network,order=length(V(network)),nodes=V(network)[i],mode=c("in"),mindist=0)),-1)
+        up.all.nodes <- head(unlist(ego(network,order=length(V(network)),nodes=V(network)[i],mode=c("in"),mindist=0)),-1)#all nodes that are upgradient
         
     # Define hydrologic inflows/outflows for each reach (m3 d-1)
         
