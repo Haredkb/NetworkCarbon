@@ -42,7 +42,7 @@
         length_reach <- ifelse(length_reach == 0, 10, length_reach) # locations within any edges in are springs and thus have 10 meter contributing
         # 
         
-        #add reach length to node attrbute
+        #add reach length to node attribute
         V(network)$length_reach[i] <- length_reach
         
         # Find neighboring reaches upstream that flow in to the reach:
