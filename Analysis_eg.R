@@ -17,13 +17,13 @@ calc_net <- solveMB(net)
 
 
 ## Read initial network (starting values)
-
+#net <- read in network with starting values
 
 ##for loop for each time step
   #read input files (inputs external to the network)
     #water yield, doc yield, litter inputs, temperature
   
-  #solve network function
+  #solve network function (should add list of input files to pass to function)
   net <- solveMB(net)
 
   #Extract vertices dataframe for easy viewing (if timestep every 10 time steps write a dataframe) 
