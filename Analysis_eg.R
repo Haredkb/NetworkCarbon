@@ -10,6 +10,9 @@ source("R/global.R")
 ## Read Example Watershed network in 
 net <- readRDS("data/eg_watershed.RDS")
 
+# ## Add in Network Direction
+# net2 <- netDir(net)
+
 #update igraph object to include calculations
 calc_net <- solveMB(net)
 
@@ -32,3 +35,10 @@ calc_net <- solveMB(net)
 
 ##Note the "lengthup_m" is from the original GIS calculations, so is determined seperately from this code. 
 ##Therefore, the SLout and lengthup_m should be ~ the same. 
+
+# #
+# show_env <- solveMB(){
+#   list(ran.in = environment(), 
+#        parent = parent.env(environment()), 
+#        objects = ls.str(environment()))
+# }

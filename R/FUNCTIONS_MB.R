@@ -5,6 +5,41 @@
 
 ## add in details here 
 
+#########################
+## Create Network Direction 
+#########################
+
+netDir <- function(network){
+# Calculate mass-balance for each reach moving down the network from headwaters to mouth:
+      for(i in 1:length(V(network))){
+            
+          
+            #Watershed Parameters 
+            a=7.3 #NC, Heton 2011 
+            b=0.45 #NC, Helton 2011
+            c=0.408 #Wolheim 2006
+            d=0.294 #Wolheim 2006
+            
+            #node ids
+            n_ID <- V(network)$name[i] #node ID being run
+            #attribute edge with node
+            e_ID <- incident(network, n_ID, mode = c("in")) #get edges so the data is shared - this should replace the mutate to nodes. 
+            
+            #length attrbuted to reach
+            length_reach <- sum(e_ID$length_m)
+            # #no edges contributing to initial node - should these be 0 or 10? These are only summing incident, so all total length upstream will be accounted for via the total calculation moving downgradient
+            length_reach <- ifelse(length_reach == 0, 10, length_reach) # locations within any edges in are springs and thus have 10 meter contributing
+            # 
+            
+            #add reach length to node attrbute
+            V(network)$length_reach[i] <- length_reach
+            
+            # Find neighboring reaches upstream that flow in to the reach:
+            up <- igraph::neighbors(network, i,mode=c("in")) #only single  #create list for these features - not igraph unforuntely
+            up.all.nodes <- head(unlist(ego(network,order=length(V(network)),nodes=V(network)[i],mode=c("in"),mindist=0)),-1)#all nodes that are upgradient
+      }
+  return(network)
+}
 
 ## ---------- Functions used in the mass balance model --------- ##
 
@@ -22,12 +57,18 @@
       V(network)$SLout <- NA
       
       
+    ################################################
+    ################################################
+    # Define hydrologic inflows/outflows for each reach (m3 d-1)
+    for(i in 1:length(V(network))){
+      
       #Watershed Parameters 
       a=7.3 #NC, Heton 2011 
       b=0.45 #NC, Helton 2011
       c=0.408 #Wolheim 2006
       d=0.294 #Wolheim 2006
       
+<<<<<<< Updated upstream
       # Calculate mass-balance for each reach moving down the network from headwaters to mouth:
       for(i in 1:length(V(network))){
         
@@ -52,15 +93,40 @@
     # Define hydrologic inflows/outflows for each reach (m3 d-1)
         
         #Determine stream length within reach
+=======
+      #node ids
+      n_ID <- V(network)$name[i] #node ID being run
+      #attribute edge with node
+      e_ID <- incident(network, n_ID, mode = c("in")) #get edges so the data is shared - this should replace the mutate to nodes. 
+      
+      #length attrbuted to reach
+      length_reach <- sum(e_ID$length_m)
+      # #no edges contributing to initial node - should these be 0 or 10? These are only summing incident, so all total length upstream will be accounted for via the total calculation moving downgradient
+      length_reach <- ifelse(length_reach == 0, 10, length_reach) # locations within any edges in are springs and thus have 10 meter contributing
+      # 
+      
+      #add reach length to node attrbute
+      V(network)$length_reach[i] <- length_reach
+      
+      # Find neighboring reaches upstream that flow in to the reach:
+      up <- igraph::neighbors(network, i,mode=c("in")) #only single up (will be mostly 2)
+      #put as a vertice attribute, want a string within a single column
+      V(network)$upV[i] <- up
+      
+      up.all.nodes <- head(unlist(ego(network,order=length(V(network)),nodes=V(network)[i],mode=c("in"),mindist=0)))#all nodes that are upgradient
+      #V(network)$upAllV[i] <- c(up.all.nodes)  
+      
+      #Determine stream length within reach
+>>>>>>> Stashed changes
         V(network)$SLlocal[i] <-  length_reach #* V(network)$baseSL_m3dm[i] #baseflow per meter stream length[i]#V(network)$SL_lat_m3d[i] #V(network)$length_m[i] previous
         
-        # Determine inflow from contributing (up) reaches (m3 d-1):
-        if(length(up)>0){
-          V(network)$SLin[i] <- sum(V(network)$SLout[up]) #only one or junction will have two
-        }  
-        
-        # Discharge outflow to downstream reach (m3 d-1):
-        V(network)$SLout[i] <- sum(V(network)$SLlocal[i], V(network)$SLin[i], na.rm = T)
+        # # Determine inflow from contributing (up) reaches (m3 d-1):
+        # if(length(up)>0){
+        #   V(network)$SLin[i] <- sum(V(network)$SLout[up]) #only one or junction will have two
+        # }  
+        # 
+        # # Discharge outflow to downstream reach (m3 d-1):
+        # V(network)$SLout[i] <- sum(V(network)$SLlocal[i], V(network)$SLin[i], na.rm = T)
         
       # #Calculate stream reach attributes
         # V(network)$width_m[i] <- a * (V(network)Qout[i]/86400)^b #already in m3/d, needs to be in m3/s
