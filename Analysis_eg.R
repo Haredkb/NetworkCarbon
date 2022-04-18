@@ -49,7 +49,7 @@ s_month = month(s_date) #starting month
 ##for loop for each time step
 #water yield, doc yield, litter inputs, temperature
         dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + days(timesteps)), by = "day")
-        network <- net
+        network <- net2
         
         #set up igraph variables
         # Inflow discharge from local catchment (m3 d-1):
@@ -61,7 +61,7 @@ s_month = month(s_date) #starting month
         
 
 #day iteration        
-
+rm(network_pre) #remove from global env
 net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
               #for(i in seq_along(dates)){ #working on function for this
                 print(ts)
@@ -81,6 +81,13 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                 POM_input_mon <- POM_input %>%
                   dplyr::filter(sample.mo == mon)  
                 
+                # ### Add Terrestrial Input DOC
+                # DOC_seep_table_mon <- DOC_seep_table %>%
+                #   filter(mon == month) 
+                
+                #temperature
+                #n$temp <-  n$amp * cos(rad_day(j - n$phase)) + n$ymean
+                
                 ### CALCULATE GEOMORPHIC PARAMETERS
 
                 network <- netset(network, bq_m3dm)
@@ -96,8 +103,6 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                                   sd = POM_input_mon$lateral_gmd_sd))*V(network)$length_reach  #lateral  
                 
                 ### Previous Time Step to determine present standing stock (sStock)
-                #if(exists("env.pre", mode="environment")){
-                
                 if(!exists("network_pre")){
                 #   #network_pre <- get("network", env.pre())
                   V(network)$POC_sStock_gd <- V(network)$ClocalLit_gd
@@ -108,48 +113,27 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                 
                 
                 })
-                #   # #network_pre <-  make_empty_graph()
-                #   # # ##and set up environment
-                #   # env.pre <- new.env()
-                #   }
-                # )
-                
+
                 #POC standing Stock Loss per day
-                V(network)$POC_loss_gd <- V(network)$POC_sStock_gd * 0 #placeholder (as postive value)
+                V(network)$POC_loss_gd <- V(network)$POC_sStock_gd * 0 #placeholder (as positive value)
                 
                 #remaining standstock end of timestep
                 V(network)$POC_gd <- V(network)$POC_sStock_gd - V(network)$POC_loss_gd
                 
                 ##set up environment for next timestep
-                #env.pre$network <- network #full environment...
-                # function() {
-                #   network_pre <<- network
-                #   }
-                
-                #pre_network <- network
                 #YES ASSIGNING TO THE GLOBAL IS FROWNED ON _ WILL CHANGE TO DIFFERNT ONE BUT WORKS!!!!! 
                 assign("network_pre", network, envir = .GlobalEnv)
-                
+                message(Sys.time())
                 return(network)
                 
         })
 
-##time step names
-net_lst <- lapply(seq_along(dates), function(i) paste(names(net_lst)[[i]], net_lst[[i]]))
-          
-          
-          # #add avg and sd to the node df, again stats not okay to use abs and claim true normal distribution, but really just trying to get a random number generator... # Could add another width column that maxs out at 10m, implying POC is only added for 5 m on eother side, but need to have reason for those measures, I think they were in my other paper 
-          # n$C_in_gm2d <-  abs(rnorm(nrow(n), mean = POM_input_mon$direct_gm2d_avg, 
-          #                           sd = POM_input_mon$direct_gm2d_sd))
-          # n$C_in_gmd <-  abs(rnorm(nrow(n), mean = POM_input_mon$lateral_gmd_avg, 
-          #                          sd = POM_input_mon$lateral_gmd_sd))
-        
+#TESTING#
+v_df3 <- as.data.frame(get.vertex.attribute(net_lst[[3]]))
+v_df15 <- as.data.frame(get.vertex.attribute(net_lst[[15]]))
 
-          ### SOLVE CARBON MASS BALANCE
-        
-#m3/D * mg/m3
-          #net <- solveMB(net, POM_input_mon, )
-          
+# ##time step names
+# net_lst1 <- lapply(seq_along(dates), function(i) paste(names(net_lst)[[i]], dates[[i]]))
           
           
         #Extract vertices dataframe for easy viewing (if timestep every 10 time steps write a dataframe) 

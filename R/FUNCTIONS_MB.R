@@ -190,3 +190,14 @@ netset <- function(network, bq_m3dm){
     # }
     
     
+    ####-- env time steps
+    
+    previous_ts <- function(network) {
+      p_network <- NULL
+      function() {
+        p_network <<- network
+      }
+      p_network
+    }
+
+        
