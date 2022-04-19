@@ -49,7 +49,7 @@ s_month = month(s_date) #starting month
 ##for loop for each time step
 #water yield, doc yield, litter inputs, temperature
         dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + days(timesteps)), by = "day")
-        network <- net2
+        network <- net
         
         #set up igraph variables
         # Inflow discharge from local catchment (m3 d-1):
@@ -61,7 +61,10 @@ s_month = month(s_date) #starting month
         
 
 #day iteration        
-rm(network_pre) #remove from global env
+if(exists("network_pre")){
+  rm(network_pre)} #remove from global env
+        
+        
 net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
               #for(i in seq_along(dates)){ #working on function for this
                 print(ts)
@@ -109,7 +112,7 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                   message("No PRE")
                 } else({
                   V(network)$POC_sStock_gd <- V(network_pre)$POC_gd + V(network)$ClocalLit_gd
-                  message("yes PRE")
+                  message("Yes PRE")
                 
                 
                 })
@@ -129,15 +132,15 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
         })
 
 #TESTING#
+#Extract vertices dataframe for easy viewing (if timestep every 10 time steps write a dataframe) 
 v_df3 <- as.data.frame(get.vertex.attribute(net_lst[[3]]))
 v_df15 <- as.data.frame(get.vertex.attribute(net_lst[[15]]))
+v_df1 <- as.data.frame(get.vertex.attribute(net_lst[[1]]))
 
 # ##time step names
 # net_lst1 <- lapply(seq_along(dates), function(i) paste(names(net_lst)[[i]], dates[[i]]))
           
-          
-        #Extract vertices dataframe for easy viewing (if timestep every 10 time steps write a dataframe) 
-  v_df <- as.data.frame(get.vertex.attribute(net_lst[[3]]))
+
 
 
 ##Note the "lengthup_m" is from the original GIS calculations, so is determined seperately from this code. 
