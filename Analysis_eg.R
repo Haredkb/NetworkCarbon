@@ -18,7 +18,7 @@ net <- readRDS("data/eg_watershed.RDS")
 #net <- read in network with starting values
 
 #define time steps and units
-timesteps = 14 
+timesteps = 
 ts_units = "day" #hour
 s_date = as.POSIXct("10-01-2018 00:00", format = "%m-%d-%Y %H:%M") #define model start date
 s_Jday = yday(s_date) #starting Julian Day 
@@ -48,7 +48,9 @@ s_month = month(s_date) #starting month
 
 ##for loop for each time step
 #water yield, doc yield, litter inputs, temperature
-        dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + days(timesteps)), by = "day")
+        dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + hours(timesteps)), by = "hour")
+        
+        
         network <- net
         
         #set up igraph variables
@@ -92,7 +94,6 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                 #n$temp <-  n$amp * cos(rad_day(j - n$phase)) + n$ymean
                 
                 ### CALCULATE GEOMORPHIC PARAMETERS
-
                 network <- netset(network, bq_m3dm)
                    
             #########################################
@@ -118,7 +119,7 @@ net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                 })
 
                 #POC standing Stock Loss per day
-                V(network)$POC_loss_gd <- V(network)$POC_sStock_gd * 0 #placeholder (as positive value)
+                V(network)$POC_loss_gd <- V(network)$POC_sStock_gd * 0 #placeholder (loss as positive value)
                 
                 #remaining standstock end of timestep
                 V(network)$POC_gd <- V(network)$POC_sStock_gd - V(network)$POC_loss_gd
