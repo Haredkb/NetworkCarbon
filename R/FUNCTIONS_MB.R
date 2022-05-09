@@ -38,6 +38,8 @@ netset <- function(network, bq_m3dm){
           dplyr::filter(Basin_ID == V(network)$basin_id[i])
         
         V(network)$Qlocal[i] <-  length_reach * bq$m + bq$b #V(network)$baseQ_m3dm[i] #baseflow per meter stream length[i]#V(network)$Q_lat_m3d[i] #V(network)$length_m[i] previous
+        V(network)$Qlocal[i] <- V(network)$Qlocal[i]/24 #correct for hours timestep
+        
         
         # Discharge inflow from upstream network (m3 d-1):
         if(length(up)>0){
@@ -48,6 +50,9 @@ netset <- function(network, bq_m3dm){
         V(network)$Qout[i] <- sum(V(network)$Qlocal[i], V(network)$Qnet[i], na.rm = T)
         V(network)$width_m[i] <- a * (V(network)$Qout[i]/86400)^b #already in m3/d, needs to be in m3/s
         V(network)$depth_m[i] <- c * (V(network)$Qout[i]/86400)^d 
+        V(network)$Bedarea_m2[i] <- V(network)$width_m[i] * length_reach
+        V(network)$CSarea_m2[i] <- V(network)$width_m[i] * V(network)$depth_m[i]
+        V(network)$avg_v[i] <- V(network)$Qout[i] / V(network)$CSarea_m2[i]
         #V(network)$runoff_mday[i] = V(network)$Qout[i]/V(network)$CatchmentA[i] #need to check q_ma versus q0001e
 }
   return(network)
