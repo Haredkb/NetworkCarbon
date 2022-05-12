@@ -16,7 +16,10 @@ library(ggplot2)
 theme_set(theme_bw())
 library(ggraph) #network graph pretty
 library(lubridate)
-library(dplyr)         # general data manipulation and cleaning
+library(dplyr)       
+library(rstan)
+library(rstanarm)
+# general data manipulation and cleaning
 #library(magick) #create animation
 #source("R/igraphNetwork_MB.R")
 source("R/FUNCTIONS_MB.R")

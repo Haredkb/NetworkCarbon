@@ -17,6 +17,7 @@ netset <- function(network, bq_m3dm){
   d=0.294
   
   for(i in 1:length(V(network))){
+
       # Calculate mass-balance for each reach moving down the network from headwaters to mouth:
         n_ID <- V(network)$name[i] #node ID being run
         e_ID <- incident(network, n_ID, mode = c("in")) #get edges so the data is shared - this should replace the mutate to nodes. 
@@ -34,11 +35,12 @@ netset <- function(network, bq_m3dm){
         # Discharge inflow from local catchment (m3 d-1):
         #V(network)$Qlocal[i] <- V(network)$runoff_mday[i] * (V(network)$areasqkm[i]*10^6)
         #filter based on basin
-        bq <- bq_m3dm %>%
-          dplyr::filter(Basin_ID == V(network)$basin_id[i])
+        V(network)$basin_id[i] <- if_else(V(network)$basin_id[i] == "CoweetaCreek", "ShopeFork", V(network)$basin_id[i]) #right now putting shope projection on the base as that incompasses most of the base
         
-        V(network)$Qlocal[i] <-  length_reach * bq$m + bq$b #V(network)$baseQ_m3dm[i] #baseflow per meter stream length[i]#V(network)$Q_lat_m3d[i] #V(network)$length_m[i] previous
-        V(network)$Qlocal[i] <- V(network)$Qlocal[i]/24 #correct for hours timestep
+        bq <- bq_m3dm %>%
+          dplyr::filter(basin_id == V(network)$basin_id[i])
+        
+        V(network)$Qlocal[i] <-  length_reach * bq$m + bq$b #average Baseflow m3/hr
         
         
         # Discharge inflow from upstream network (m3 d-1):
@@ -47,12 +49,12 @@ netset <- function(network, bq_m3dm){
         }  
         
         #Discharge outflow to downstream reach (m3 d-1):
-        V(network)$Qout[i] <- sum(V(network)$Qlocal[i], V(network)$Qnet[i], na.rm = T)
-        V(network)$width_m[i] <- a * (V(network)$Qout[i]/86400)^b #already in m3/d, needs to be in m3/s
-        V(network)$depth_m[i] <- c * (V(network)$Qout[i]/86400)^d 
+        V(network)$Qout[i] <- if_else(V(network)$Qlocal[i]> 0, sum(V(network)$Qlocal[i], V(network)$Qnet[i], na.rm = T), V(network)$Qnet[i])  
+        V(network)$width_m[i] <- if_else(V(network)$Qout[i]> 0, a * (V(network)$Qout[i]/3600)^b, 0) #already in m3/hr, needs to be in m3/s
+        V(network)$depth_m[i] <- if_else(V(network)$Qout[i]> 0, c * (V(network)$Qout[i]/3600)^d, 0)
         V(network)$Bedarea_m2[i] <- V(network)$width_m[i] * length_reach
         V(network)$CSarea_m2[i] <- V(network)$width_m[i] * V(network)$depth_m[i]
-        V(network)$avg_v[i] <- V(network)$Qout[i] / V(network)$CSarea_m2[i]
+        V(network)$avg_v[i] <- if_else(V(network)$Qout[i]> 0, V(network)$Qout[i] / V(network)$CSarea_m2[i], 0)
         #V(network)$runoff_mday[i] = V(network)$Qout[i]/V(network)$CatchmentA[i] #need to check q_ma versus q0001e
 }
   return(network)
