@@ -19,8 +19,14 @@ library(lubridate)
 library(dplyr)       
 library(rstan)
 library(rstanarm)
+library(bayesplot)
 # general data manipulation and cleaning
 #library(magick) #create animation
 #source("R/igraphNetwork_MB.R")
 source("R/FUNCTIONS_MB.R")
+
+library('devtools') 
+#install_github('brooksandrew/Rsenal') 
+library('Rsenal')
+library(fuzzyjoin)
 
