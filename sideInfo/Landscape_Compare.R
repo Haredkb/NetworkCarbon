@@ -24,4 +24,8 @@ lscp_sites <- network_ts_all_ss %>%
 
 
   lscp_sites$DOC_stream = lscp_sites$doc.mgl * lscp_sites$Qout
+
+  ggplot(lscp_sites)+
+    geom_point(aes(DOC_local, DOC_stream, color = stream))+
+    geom_abline(slope = 1, intercept = 0)
   

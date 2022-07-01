@@ -1,7 +1,6 @@
 
 library(igraph)        # network analysis; create river network graphs
 library(tidygraph)
-
 library(nhdplusTools)  # R package for interafacing with NHDPlus
 library(dataRetrieval) # R package for interfacing with NWIS data
 library(sf)            # spatial analysis

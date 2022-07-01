@@ -1,7 +1,13 @@
 ##### plotting testing
 library(ggplot2)
 library(tidyverse)
-theme_set(theme_bw)
+theme_set(theme_bw())
+
+
+ggplot(network_ts_all_ss)+
+  geom_point(aes(date_d,POC_sStock_g))
+
+
 
 
 
