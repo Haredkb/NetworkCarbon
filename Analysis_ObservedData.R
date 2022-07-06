@@ -14,6 +14,22 @@ source("R/global.R")
 ## Read Example Watershed network in 
 #net <- readRDS("data/eg_watershed.RDS")
 net <- readRDS("data/network_intital.RDS")
+
+for(i in 1:length(V(net))){
+  up.all <- ego(net,order=length(V(net)),nodes=V(net)[i],mode=c("in"),mindist=0)
+  V(net)$up.all[i] <- length(unlist(up.all))
+}
+
+# Re-arrange network graph so that model starts with headwaters, and moves down the network to larger river reaches:
+net2 <- igraph::graph_from_data_frame(d=igraph::as_data_frame(net,what="edges"),
+                                      vertices=igraph::as_data_frame(net,what="vertices") %>%
+                                        arrange(up.all))
+V(net2)$label <- V(net)$up.all
+net <- net2
+
+#add reach length in (incident edges) and nodes contributing (nodes in)
+net <- up_nodes(net)
+
 ## Read initial network (starting values)
 #net <- read in network with starting values
 
@@ -30,7 +46,7 @@ network_ts_day_id <- list()
 ############################
 #define time steps and units
 ##############################
-timesteps = (24 * 100) -1 #minus one hour to end on correct day
+timesteps = (24 * 4) -1 #minus one hour to end on correct day
 ts_units = "hour" #hour'
 # Set up model run times start dates
 intial_dates = as.POSIXct(c("11-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
@@ -72,6 +88,9 @@ intial_cpomSS = cpom_gm2 %>% dplyr::filter(Jdate %in% yday(intial_dates))
 ####Direct and Lateral POC Inputs####
     ClocalLit_AFDMg <- readRDS("data/ClocalLit_g.RDS")
     
+#### Basin data
+    V(net)$basin_id <- if_else(V(net)$basin_id == "CoweetaCreek", "ShopeFork", V(net)$basin_id)
+    V(net)$basin_id <- if_else(is.na(V(net)$basin_id) == TRUE, "ShopeFork", V(net)$basin_id)
 
 ####################################
 #SETTING UP INITIAL DATE FOR THE RUN,
