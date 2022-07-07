@@ -19,6 +19,7 @@ netset <- function(network, bq_m3hrm){
   # Define hydrologic inflows/outflows for each reach (m3 hr-1 per m) 
   V(network)$m <- makeVertexAtt(network, bq_m3hrm, "estimate", by.df = "basin_id", by.g = "basin_id")
   V(network)$Qlocal <-  V(network)$length_reach * V(network)$m
+  V(network)$Qest <- V(network)$lengthup_m * V(network)$m
   
 # move through network order matters
 for(i in 1:length(V(net))){
@@ -26,21 +27,23 @@ for(i in 1:length(V(net))){
     
   up <- tryCatch(
     {as.numeric(unlist(strsplit(V(network)[i]$up, split= ",")))
+      
     },
     error=function(cond) {
       return(NA)
     })
     
     # Discharge inflow from upstream network (m3 hr-1):
-    if(!is.na(up) == TRUE){
+    if(is.na(up) == FALSE){
       V(network)$Qup[i] <- sum(V(network)$Qout[up]) #only one or junction will have two
     }  else{
-      V(network)$Qup[i] <-  0 
+      V(network)$Qup[i] =  0 
     }
       
     
     #Discharge outflow to downstream reach (m3 hr-1):
-    V(network)$Qout[i] <- sum(V(network)$Qlocal[i], V(network)$Qup[i], na.rm = T)#if_else(V(network)$Qlocal[i]> 0, sum(V(network)$Qlocal[i], V(network)$Qup[i], na.rm = T), V(network)$Qup[i]) #as long as there is a postive Qlocal, add Qlocal + Qup to get Qout, otherwise just use Qup - accounts for losing reaches 
+
+    V(network)$Qout[i] <- sum(V(network)$Qlocal[i], V(network)$Qup[i], na.rm = TRUE)#if_else(V(network)$Qlocal[i]> 0, sum(V(network)$Qlocal[i], V(network)$Qup[i], na.rm = T), V(network)$Qup[i]) #as long as there is a postive Qlocal, add Qlocal + Qup to get Qout, otherwise just use Qup - accounts for losing reaches 
     V(network)$width_m[i] <- if_else(V(network)$Qout[i]> 0, a * (V(network)$Qout[i]/3600)^b, 0) #already in m3/hr, needs to be in m3/s
     V(network)$depth_m[i] <- if_else(V(network)$Qout[i]> 0, c * (V(network)$Qout[i]/3600)^d, 0)
     V(network)$Bedarea_m2[i] <- V(network)$width_m[i] * V(network)$length_reach[i]
@@ -58,7 +61,7 @@ up_nodes <- function(network){
     #all values contributing to point
     up <- igraph::neighbors(network, i,  mode=c("in"))
 
-    return(up$name)
+    return(up)
     
   })
   
@@ -90,14 +93,14 @@ move_OC <- function(network, network_pre){
     
     # Discharge inflow from upstream network (m3 hr-1):
     ##NOTE FPOC is in ADFM and DOC is in gm3
-    if(!is.na(V(network)$up[i]) == TRUE){
+    if(is.na(V(network)$up[i]) == FALSE){
       up <- as.numeric(unlist(strsplit(V(network)[i]$up, split= ",")))
-      V(network)$DOC_up[i] <- sum(V(network_pre)$DOC_out[up]) #sum the DOC_out from the previous timestep - amount that has come to the reach
-      V(network)$DOC_out[i] <- V(network)$DOC_up[i] + V(network)$DOC_local[i] #add DOC from upstream from previous timestep to the DOC local from the current timestep
-      V(network)$FTOC_up[i] <- sum(V(network_pre)$FTOC_out[up])
+      V(network)$DOC_up[i] <- sum(V(network_pre)$DOC_out[up], na.rm = TRUE) #sum the DOC_out from the previous timestep - amount that has come to the reach
+      V(network)$DOC_out[i] <- V(network)$DOC_up[i] + V(network)$DOC_local_gC[i] #add DOC from upstream from previous timestep to the DOC local from the current timestep
+      V(network)$FTOC_up[i] <- sum(V(network_pre)$FTOC_out[up], na.rm = TRUE)
       V(network)$FTOC_out[i] <- V(network)$FTOC_up[i] + V(network)$FTOC_local[i]
     }  else{#origin sites - no contributing streams
-      V(network)$DOC_out[i] <- V(network)$DOC_local[i]
+      V(network)$DOC_out[i] <- V(network)$DOC_local_gC[i]
       V(network)$FTOC_out[i] <- V(network)$FTOC_local[i]
     }
   }

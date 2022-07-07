@@ -1,0 +1,30 @@
+###Plotting Network
+
+#which timestep to plot
+iG = 90
+p <- net_lst[[iG]]
+# Convert igraph network into visNetwork format
+visCWT <- toVisNetworkData(p)
+
+# Grab nodes data frame.
+nodes <- visCWT$nodes
+
+# Grab edges data frame. 
+edges <- visCWT$edges
+
+
+# Create continuous color palette.
+DOCoutPal <- colorRampPalette(c('#E0F4FF','#003049'))
+
+# Match palette to centrality vector.
+nodes$color <- DOCoutPal(7)[cut(V(p)$Qout, breaks = 7)]
+
+# Plot. 
+#visNetwork(nodes, edges)
+
+V(net_lst[[iG]])$color <- DOCoutPal(7)[cut(V(p)$DOC_out, breaks = 7)]
+visIgraph(net_lst[[iG]])
+
+
+visIgraph(net_lst[[iG]]) %>% 
+  visOptions(nodesIdSelection = TRUE, highlightNearest = TRUE)
