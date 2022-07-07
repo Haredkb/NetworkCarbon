@@ -214,7 +214,7 @@ for(j in seq(1,length(intial_dates))){
                                                         POM_input_mon$Clateral_gmhr * V(network)$length_reach * 2 #lateral 
                             
                             #If the flow is not negative, mutliply DOC seep value by reach Q added to get DOC from GW for the reach
-                            V(network)$DOC_local <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
+                            V(network)$DOC_local_gC <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
                             
                             ##Litter Breakdown temp and q55 dependence from landscape glm 
                             #create data frame to calculate temperature and stream discharge dependence 
@@ -290,7 +290,7 @@ for(j in seq(1,length(intial_dates))){
                         V(network)$FTOC_up <- 0
                         V(network)$DOC_up <- 0
                         V(network)$FTOC_out <- V(network)$FTOC_local
-                        V(network)$DOC_out <- V(network)$DOC_local
+                        V(network)$DOC_out <- V(network)$DOC_local_gC
                       }else{
                           network <- move_OC(network, network_pre)
                       }
@@ -312,7 +312,7 @@ for(j in seq(1,length(intial_dates))){
           network_ts <- data.frame(matrix(ncol = length(network_cols), nrow = 0))
           ts_all <- data.frame(matrix(ncol = length(network_cols), nrow = 0))
           
-          for(i in seq(1, length(net_lst)-1)){ # (remove one)
+          for(i in seq(2, length(net_lst))){ # start with second one as the first timestep doesnt have transport.
             ts_all = rbind(ts_all, as.data.frame(get.vertex.attribute(net_lst[[i]])))
           }
           
@@ -326,7 +326,7 @@ for(j in seq(1,length(intial_dates))){
                                           C_breakdown_AFDMg_TQ = sum(POC_loss_AFDMg_TQ, na.rm = TRUE),
                                           #C_breakdown_g_ss_tIV = sum(POC_loss_AFDMg_ss_tIV),
                                           #C_breakdown_AFDMg = sum(POC_loss_AFDMg, na.rm = TRUE),
-                                          C_gw_gC = sum(DOC_local, na.rm = TRUE)
+                                          C_gw_gC = sum(DOC_local_gC, na.rm = TRUE)
                                         )
           
           ##Note the "lengthup_m" is from the original GIS calculations, so is determined seperately from this code. 
