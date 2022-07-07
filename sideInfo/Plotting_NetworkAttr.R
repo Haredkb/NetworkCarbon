@@ -16,9 +16,6 @@ edges <- visCWT$edges
 # Create continuous color palette.
 DOCoutPal <- colorRampPalette(c('#E0F4FF','#003049'))
 
-# Match palette to centrality vector.
-nodes$color <- DOCoutPal(7)[cut(V(p)$Qout, breaks = 7)]
-
 # Plot. 
 #visNetwork(nodes, edges)
 
