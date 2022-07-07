@@ -46,7 +46,7 @@ network_ts_day_id <- list()
 ############################
 #define time steps and units
 ##############################
-timesteps = (24 * 4) -1 #minus one hour to end on correct day
+timesteps = (24 * 90) -1 #minus one hour to end on correct day
 ts_units = "hour" #hour'
 # Set up model run times start dates
 intial_dates = as.POSIXct(c("11-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
@@ -225,9 +225,12 @@ for(j in seq(1,length(intial_dates))){
                             #need this extra step for fragmentation because of na (due to neg values)
                             k_TQ_lamF <- posterior_predict(mod_lamF,new = mod_df, type = "response")
                             k_TQ_lamF <- apply(k_TQ_lamF,2,median,na.rm = TRUE)
-                            
                             V(network)$k_TQ_lamF <- k_TQ_lamF
-                            V(network)$k_TQ_lamM <- ppd_intervals_data(posterior_predict(mod_lamM, new = mod_df, type = "response"))$m #median 
+                            
+                            k_TQ_lamM <- posterior_predict(mod_lamM,new = mod_df, type = "response")
+                            k_TQ_lamM <- apply(k_TQ_lamM,2,median,na.rm = TRUE)
+                            V(network)$k_TQ_lamM <- k_TQ_lamM
+                            
                             
                             #############################
                             #Indicates this part of if statment run if there is no pre network, or the network is from the same day - no new Q, T or k values
