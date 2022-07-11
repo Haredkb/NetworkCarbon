@@ -90,10 +90,9 @@ move_OC <- function(network, network_pre){
   
   #move through nodes - this network is structured so nodes move from headwaters to outlet, thus has to be a loop (order matters)
   for(i in 1:length(V(network))){
-    
-    # Discharge inflow from upstream network (m3 hr-1):
+
     ##NOTE FPOC is in ADFM and DOC is in gm3
-    if(is.na(V(network)$up[i]) == FALSE){
+    if(V(network)[i]$up.all > 1){
       up <- as.numeric(unlist(strsplit(V(network)[i]$up, split= ",")))
       V(network)$DOC_up[i] <- sum(V(network_pre)$DOC_out[up], na.rm = TRUE) #sum the DOC_out from the previous timestep - amount that has come to the reach
       V(network)$DOC_out[i] <- V(network)$DOC_up[i] + V(network)$DOC_local_gC[i] #add DOC from upstream from previous timestep to the DOC local from the current timestep
@@ -103,6 +102,8 @@ move_OC <- function(network, network_pre){
       V(network)$DOC_out[i] <- V(network)$DOC_local_gC[i]
       V(network)$FTOC_out[i] <- V(network)$FTOC_local[i]
     }
+
+
   }
   
   return(network)

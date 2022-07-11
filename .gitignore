@@ -38,3 +38,7 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 .RDataTmp2
+animate/CWT_DOC_output1.png
+*.png
+*.RData
+*.csv

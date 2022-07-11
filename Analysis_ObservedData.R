@@ -46,10 +46,10 @@ network_ts_day_id <- list()
 ############################
 #define time steps and units
 ##############################
-timesteps = (24 * 90) -1 #minus one hour to end on correct day
+timesteps = (24 * 364) -1 #minus one hour to end on correct day
 ts_units = "hour" #hour'
 # Set up model run times start dates
-intial_dates = as.POSIXct(c("11-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
+intial_dates = as.POSIXct(c("10-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
 #intial_dates = as.POSIXct(c("11-01-2018 00:00", "02-01-2019 00:00", "05-01-2019 00:00", "08-01-2019 00:00"), format = "%m-%d-%Y", tz = "GMT")
 #))#
 
@@ -65,6 +65,7 @@ mod_lamF <- readRDS("mod_w1_LF.RDS") #kc_lamF ~ q_55 + temp_55
 
 #Stream Temperature - Created in file MultipleRegressionAnalysis.R
 temp_sin <- readRDS("data/temp_sin.RDS")
+#temp_sin$ymean <- temp_sin$ymean + 2
 #temp_sin$ymean <- temp_sin$ymean  + 2 ### scenario 50 years 
         ### Keep for Temperature Scenarios###
         # #create synthetic scenarios, shallow and deep based on 0.55 and 20 day amp ratio for shallow and 0.4 for deep, 0.9 for atmospheric. For 50 year future values, only changed ymean 
@@ -128,7 +129,7 @@ for(j in seq(1,length(intial_dates))){
           net_lst <- lapply(dates, function(ts, env = parent.frame(), inherits = FALSE){
                           print(ts)#print current time step
                           ts_pre <- ts - hours(1) #what was the previous time step 
-                          
+                          ts_pre <- dplyr::if_else(is.na(ts_pre) == TRUE, ts - hours(2), ts) #fifelse presevers type and class of inputs this catches daylight savings
                           #initialize date details
                           #add date to igraph
                           V(network)$date <- as.character(ts)
@@ -296,6 +297,7 @@ for(j in seq(1,length(intial_dates))){
                         V(network)$DOC_out <- V(network)$DOC_local_gC
                       }else{
                           network <- move_OC(network, network_pre)
+                          message("moveOC")
                       }
                   
                 ##set up environment for next timestep
@@ -348,45 +350,56 @@ for(j in seq(1,length(intial_dates))){
           network_ts_day[[j]] <- ts_day
 }
 
-
-# For saving data
-# saveRDS(network_ts_all, "network_ts_all_DEEP50.RDS")
-# saveRDS(network_ts_day, "network_ts_day_DEEP50.RDS")
-# saveRDS(network_ts_day_id, "network_ts_dayid_DEEP50.RDS")
-# 
-
-#Join timestep lists into a signle dataframe
-network_ts_all_ss <- do.call(rbind,  network_ts_all)
-network_ts_day_df <- do.call(rbind,  network_ts_day)
-
-
-##### Create summary table by date and gC in and 
-network_ts_day_df <- network_ts_day_df %>% #do.call(rbind,  network_ts_day_ss_DEEP50) %>%
-  mutate(month_dep = as.factor(month(date_d, label = TRUE))) %>%
-  group_by(month_dep) %>%
-  summarise(
-    #C_internal = mean(C_breakdown_g),
-    POCbreakdown_TQ = mean(C_breakdown_AFDMg_TQ)*0.484,
-    DOCseep = mean(C_gw_gC))%>%
-  pivot_longer(col = 2:3) #%>%#4)%>%
-  #mutate(value = if_else(startsWith(name, "C_internal"), value * 0.484, value)) #correct ADFM to gC
-
-network_ts_day_df_2 %<>%
-  dplyr::filter(name == "POC_breakdown_TQ")%>%
-  mutate(name = "POC_breakdown_TQ_2")
-
-network_ts_day_df_compare <- left_join(network_ts_day_df, network_ts_day_df_2, by = c("month_dep", "name"))%>%
-  mutate(diff_2 = value.y - value.x)
-
-## Plot Internal gC from breakdown and gC from dissolved
-ggplot(network_ts_day_df) +
-  geom_col(aes(fct_relevel(month_dep, "Nov", "Feb", "May", "Aug"), value, fill = name), width=.5, position = "dodge")+
-  scale_fill_manual(values=c("blue","#56B4E9"))+
-  xlab("")+
-  ylab("gC per day")
-
-ggplot(network_ts_day_df) +
-  geom_col(aes(fct_relevel(month_dep, "Nov", "Dec", "Jan", "Feb"), value, fill = name), width=.5, position = "dodge")+
-  scale_fill_manual(values=c("blue","#56B4E9"))+
-  xlab("")+
-  ylab("gC per day")
+    
+    
+    ##Join timestep lists into a single dataframe
+    network_ts_all_ss <- do.call(rbind,  network_ts_all)
+    network_ts_day_df <- do.call(rbind,  network_ts_day)
+    
+    
+    
+    
+    ################ Create summary table by date and gC from breakdown and gC from GW DOC
+    network_ts_day_df <- network_ts_day_df %>% #do.call(rbind,  network_ts_day_ss_DEEP50) %>%
+      mutate(month_dep = as.factor(month(date_d, label = TRUE))) %>%
+      group_by(month_dep) %>%
+      summarise(
+        #C_internal = mean(C_breakdown_g),
+        POCbreakdown_TQ = mean(C_breakdown_AFDMg_TQ)*0.484,
+        DOCseep = mean(C_gw_gC))%>%
+      pivot_longer(col = 2:3) #%>%#4)%>%
+    #mutate(value = if_else(startsWith(name, "C_internal"), value * 0.484, value)) #correct ADFM to gC
+    
+    
+    
+    ############Data Output #####################################
+    # For saving data
+    saveRDS(network_ts_all_ss, "output/data/network_ts_all_intial_noserialC.RDS")
+    write.csv()
+    saveRDS(network_ts_day_df, "output/data/network_ts_day_intial_noserialC.RDS")
+    
+    
+    
+    ##############Plotting#############################
+    ## Plot Internal gC from breakdown and gC from dissolved
+    ggplot(network_ts_day_df) +
+      geom_col(aes(fct_relevel(month_dep, "Nov", "Feb", "May", "Aug"), value, fill = name), width=.5, position = "dodge")+
+      scale_fill_manual(values=c("blue","#56B4E9"))+
+      xlab("")+
+      ylab("gC per day")
+    
+    ggplot(network_ts_day_df) +
+      geom_col(aes(fct_relevel(month_dep, "Nov", "Dec", "Jan", "Feb"), value, fill = name), width=.5, position = "dodge")+
+      scale_fill_manual(values=c("blue","#56B4E9"))+
+      xlab("")+
+      ylab("gC per day")
+    
+    ggsave("output/figures/364days_intial_noserialC_20220711.jpeg")
+    
+    
+    # saveRDS(network_ts_day_id, "network_ts_dayid_DEEP50.RDS")
+    # 
+    
+    network_ts_day_df_compare <- left_join(network_ts_day_df, network_ts_day_df_2, by = c("month_dep", "name"))%>%
+      mutate(diff_2 = value.y - value.x)
+    
