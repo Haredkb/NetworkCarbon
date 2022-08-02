@@ -22,7 +22,7 @@ netset <- function(network, bq_m3hrm){
   V(network)$Qest <- V(network)$lengthup_m * V(network)$m
   
 # move through network order matters
-for(i in 1:length(V(net))){
+for(i in 1:length(V(network))){
     #all values contributing to point
     
   up <- tryCatch(

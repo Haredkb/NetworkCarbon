@@ -45,3 +45,4 @@ animate/CWT_DOC_output1.png
 *.jpeg
 .RDataTmp4
 .RDataTmp3
+output/data/netlst.RDS
