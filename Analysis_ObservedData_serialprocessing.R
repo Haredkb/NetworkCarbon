@@ -7,10 +7,101 @@
 #source all req packages and scripts
 source("R/global.R")
 
+#Set start date
+intial_dates = as.POSIXct(c("08-01-2018"), format = "%m-%d-%Y")
 
 
+## Discharge BaseFlow Calculation to provide as read in file
+#ask user if they really want to run the baseQ again
+var = readline(prompt = "Do you want to reRun baseflow calculations for the network: Y/N")
+
+if(var == "Y"){
+            ####net <- readRDS("data/eg_watershed.RDS") #examples  small wateshed WS37
+            net <- readRDS("data/network_intital.RDS") #full Coweeta Watershed
+            
+            for(i in 1:length(V(net))){
+              up.all <- ego(net,order=length(V(net)),nodes=V(net)[i],mode=c("in"),mindist=0)
+              V(net)$up.all[i] <- length(unlist(up.all))
+            }
+            
+            # Re-arrange network graph so that model starts with headwaters, and moves down the network to larger river reaches:
+            net2 <- igraph::graph_from_data_frame(d=igraph::as_data_frame(net,what="edges"),
+                                                  vertices=igraph::as_data_frame(net,what="vertices") %>%
+                                                    arrange(up.all))
+            V(net2)$label <- V(net)$up.all
+            net <- net2
+            
+            #add reach length in (incident edges) and nodes contributing (nodes in)
+            net <- up_nodes(net)
+            
+            #set up time steps
+            timesteps = 364 #days
+            ts_units = "day" #hour' #days for Q as its the same for every hour within the day, but still units are per hr. 
+            # Set up model run times start dates
+
+            s_date = as.POSIXct(intial_dates[1], format = "%m-%d-%Y")
+            #intial_dates = as.POSIXct(c("11-01-2018 00:00", "02-01-2019 00:00", "05-01-2019 00:00", "08-01-2019 00:00"), format = "%m-%d-%Y", tz = "GMT")
+            #))#
+            
+            #Baseflow Linear Model for Watershed- baseQ_predict m3/hr - slope only
+            Q_JDate_lm_m3hr <- readRDS("data/Q_JDate_lm_m3hr.RDS")
+            
+            #### Basin data
+            V(net)$basin_id <- if_else(V(net)$basin_id == "CoweetaCreek", "ShopeFork", V(net)$basin_id)
+            V(net)$basin_id <- if_else(is.na(V(net)$basin_id) == TRUE, "ShopeFork", V(net)$basin_id)
+            
+            #create new object to keep original intact
+            network <- net
+            
+            ### CALCULATE BASE Q
+            dates_day <- seq(from = as.Date(s_date), to = as.Date(s_date + days(timesteps)), by = "day")
+            
+            
+            net_lstQ <- lapply(dates_day, function(t_s){
+                                              message(t_s)
+                                              #initialize date details
+                                              #add date to igraph
+                                              V(network)$date <- as.character(t_s)  #, format = "%Y-%m-%d")
+                                              #print(V(network)$date[1])
+                                              
+                                              #pull timestep specific values for filtering 
+                                              day <- yday(t_s)
+                                              mon <- month(t_s)
+                                              season <- quarter(t_s, fiscal_start = 1)
+            
+            
+                                              #set up igraph variables
+                                              # Inflow discharge from local catchment (m3 d-1):
+                                              V(network)$Qlocal <- 0
+                                              # Inflow discharge from upstream reaches (m3 d-1):
+                                              V(network)$Qup <- 0
+                                              # Outflow discharge from each reach (m3 d-1):
+                                              V(network)$Qout <- NA
+                                              
+                                              bq_m3hrm <- Q_JDate_lm_m3hr %>%
+                                                dplyr::filter(Jdate == day)
+            
+                                        ### CALCULATE GEOMORPHIC PARAMETERS and NETWORK 
+                                        
+                                        #network_pre <- get("network", env.pre())
+                                        ##Set up parameters that do not change. 
+                                        network <- netset(network, bq_m3hrm) 
+                                        })#end net_lstQ
+
+            names(net_lstQ) <- as.character(dates_day)#name each igraph as its date
+
+            saveRDS(net_lstQ, "output/data/net_lst_baseQ.RDS")
+} else {# read in previously saved version
+            net_lstQ <- readRDS("output/data/net_lst_baseQ.RDS")
+            }
+
+###########################################################################
 ## Run multiple  Temperature Scenarios
 #Stream Temperature - Created in file MultipleRegressionAnalysis.R
+
+#From Hare et al. 2021; 0.04 C/year (which is the mean rate of increase for both shall and atm), verus for 0.01 C/year; therefore for 50 years 2 C for atmospheric and shallow, versus 0.5 for deep groundwater 
+#temp_sin <- rbind(temp_scen, temp_sin) 
+
 temp_sin <- readRDS("data/temp_sin.RDS")
 scen_T <- list(base = temp_sin, #base
                base2 = mutate(temp_sin, ymean=  ymean + 2), #base + 2
@@ -22,37 +113,9 @@ scen_T <- list(base = temp_sin, #base
                )
 scen <- names(scen_T) #list the scen
 
-scenarios_temperature <- lapply(scen[1], function(scen_temp){
+scenarios_temperature <- lapply(scen, function(scen_temp){
   temp_sin <- scen_T[scen_temp][[1]]
   
-    
-    
-    ########################
-    ###### Initialize ######
-    ########################
-    ## Read Example Watershed network in 
-    net <- readRDS("data/eg_watershed.RDS") #examples  small wateshed WS37
-    #net <- readRDS("data/network_intital.RDS") #full Coweeta Watershed
-    
-    for(i in 1:length(V(net))){
-      up.all <- ego(net,order=length(V(net)),nodes=V(net)[i],mode=c("in"),mindist=0)
-      V(net)$up.all[i] <- length(unlist(up.all))
-    }
-    
-    # Re-arrange network graph so that model starts with headwaters, and moves down the network to larger river reaches:
-    net2 <- igraph::graph_from_data_frame(d=igraph::as_data_frame(net,what="edges"),
-                                          vertices=igraph::as_data_frame(net,what="vertices") %>%
-                                            arrange(up.all))
-    V(net2)$label <- V(net)$up.all
-    net <- net2
-    
-    #add reach length in (incident edges) and nodes contributing (nodes in)
-    net <- up_nodes(net)
-    
-    ## Read initial network (starting values)
-    #net <- read in network with starting values
-    
-    
     #set up output dataframe
     network_ts_all <- list()
     network_ts_day <- list()
@@ -63,12 +126,12 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
     ###################
     
     ############################
-    #define time steps and units
+    #define hour time steps and units
     ##############################
-    timesteps = (24 * 364) -1 #minus one hour to end on correct day
+    timesteps = (24 * 365) -1 #minus one hour to end on correct day
     ts_units = "hour" #hour'
     # Set up model run times start dates
-    intial_dates = as.POSIXct(c("08-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
+    #intial_dates = as.POSIXct(c("08-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
     #intial_dates = as.POSIXct(c("11-01-2018 00:00", "02-01-2019 00:00", "05-01-2019 00:00", "08-01-2019 00:00"), format = "%m-%d-%Y", tz = "GMT")
     #))#
     
@@ -82,39 +145,10 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
     #Modelled Fragmentation Lambda based on landscape data
     mod_lamF <- readRDS("mod_w1_LF.RDS") #kc_lamF ~ q_55 + temp_55
     
-    # #Stream Temperature - Created in file MultipleRegressionAnalysis.R
-    # temp_sin <- readRDS("data/temp_sin.RDS")
-    # ### scenario PLUS2 
-    # #temp_sin$ymean <- temp_sin$ymean + 2
-    # # ### scenario DeepGW
-    # # temp_sin$amp <- 4
-    # # temp_sin$phase <- 200
-    # # temp_sin$ymean <- 12
-    # # ### scenario ShalGW (%inflow)
-    # # temp_sin$amp <- 5.5
-    # # temp_sin$phase <- 220
-    # # temp_sin$ymean <- 12
-    # ### scenario lowGW
-    # temp_sin$amp <- 9
-    # temp_sin$phase <- 200
-    # temp_sin$ymean <- 13
-    
-    #temp_sin$ymean <- temp_sin$ymean  + 2 ### scenario 50 years 
-            ### Keep for Temperature Scenarios###
-            # #create synthetic scenarios, shallow and deep based on 0.55 and 20 day amp ratio for shallow and 0.4 for deep, 0.9 for atmospheric. For 50 year future values, only changed ymean 
-            # temp_sin_sc <- data.frame(scen = c("ATM", "DEEP", "SHAL", "ATM50", "DEEP50", "SHAL50"), amp = c(9, 4,5.5, 9, 4, 5.5), phase = c(200, 200, 220, 200, 200, 220), ymean = c(13, 12, 12, 15, 12.5, 14) )
-            # sc = 5
-            #From Hare et al. 2021; 0.04 C/year (which is the mean rate of increase for both shall and atm), verus for 0.01 C/year; therefore for 50 years 2 C for atmospheric and shallow, versus 0.5 for deep groundwater 
-            #temp_sin <- rbind(temp_scen, temp_sin) 
-    
     #CPOM 
     cpom_gm2 <- readRDS("data/cpom_gm2.RDS")
     #create a vector with the correct cpom initiatlation for each date. 
     intial_cpomSS = cpom_gm2 %>% dplyr::filter(Jdate %in% yday(intial_dates))
-    
-    
-    #Baseflow Linear Model for Watershed- baseQ_predict m3/hr - slope only
-        Q_JDate_lm_m3hr <- readRDS("data/Q_JDate_lm_m3hr.RDS")
     
     #### Seep DOC Data by Month ####
         DOC_gw <- readRDS("data/DOC_gw.RDS")
@@ -124,9 +158,7 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
         ClocalLit_AFDMg <- readRDS("data/POM_In.RDS") #%>%
           #dplyr::select(-2:-3) #remove by day values
         
-    #### Basin data
-        V(net)$basin_id <- if_else(V(net)$basin_id == "CoweetaCreek", "ShopeFork", V(net)$basin_id)
-        V(net)$basin_id <- if_else(is.na(V(net)$basin_id) == TRUE, "ShopeFork", V(net)$basin_id)
+
     
     ####################################
     #SETTING UP INITIAL DATE FOR THE RUN,
@@ -143,18 +175,6 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
               ##for loop for each time step
               #water yield, doc yield, litter inputs, temperature
                       dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + hours(timesteps)), by = "hour")
-                      
-                      #create new object to keep original intact
-                      network <- net
-                      
-                      #set up igraph variables
-                      # Inflow discharge from local catchment (m3 d-1):
-                      V(network)$Qlocal <- 0
-                      # Inflow discharge from upstream reaches (m3 d-1):
-                      V(network)$Qup <- 0
-                      # Outflow discharge from each reach (m3 d-1):
-                      V(network)$Qout <- NA
-                    
               
               #REMOVE OBJECT TO REFRESH ENVIRONMENT        
                     if(exists("network_pre")){
@@ -167,25 +187,29 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
                               ts_pre <- dplyr::if_else(is.na(t_s - hours(1)) == TRUE, t_s - hours(2), t_s - hours(1)) 
                               
                               #initialize date details
-                              #add date to igraph
-                              V(network)$date <- as.character(t_s)  #, format = "%Y-%m-%d")
-                              #print(V(network)$date[1])
-                              
                               #pull timestep specific values for filtering 
+                              date_c <- as.character(t_s)
                               day <- yday(t_s)
                               mon <- month(t_s)
                               season <- quarter(t_s, fiscal_start = 1) #season starting with jan
+              
                               
           ### INITIAL INPUT
                     ### Test if there is a previous time step, or if its a new day. As this generates a new Q, temp, breakdown based on day
                     if(!exists("network_pre") || yday(t_s) != yday(ts_pre)){
+                      #######################
+                      ### Discharge ######
+                      ####################
+                      #if there is no previous network (eg start of the session), or there is a new day pull the correct date baseQ (standing stock will be still use previous timestep)
+                      network <- net_lstQ[[date_c]] #pull the correct network generated from baseQ data
+                      
+                      #add date to igraph
+                      V(network)$date <- as.character(t_s)  #, format = "%Y-%m-%d")
+                      
                           ################
                           ### Temperature###
                           #################
                               
-                              ##For homogenous scenarios
-                              #tempC <-  temp_sin[sc,]$amp * cos(rad_day(day -  temp_sin[sc,]$phase)) +  temp_sin[sc,]$ymean
-                              #V(network)$tempC <- tempC
                               
                               ##For landscape temperature 
                               temp_sin$tempC <-  temp_sin$amp * cos(rad_day(day -  temp_sin$phase)) +  temp_sin$ymean
@@ -231,19 +255,6 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
                               DOC_seep_table_mon <- DOC_gw %>%
                                 filter(mon == month)
     
-                          #######################
-                          ### Discharge ######
-                          ####################
-                              
-                              ### CALCULATE BASE Q
-                              bq_m3hrm <- Q_JDate_lm_m3hr %>%
-                                dplyr::filter(Jdate == day)
-                                
-                              ### CALCULATE GEOMORPHIC PARAMETERS and NETWORK 
-    
-                                #network_pre <- get("network", env.pre())
-                                ##Set up parameters that do not change. 
-                                network <- netset(network, bq_m3hrm) 
                                 
                                 #add CPOM standing stock based 
                                 V(network)$ss_POC_l <- cpom_ts$cpom_fit   #makeVertexAtt(network, df=cpom_ts, vname='cbom')#vname='cbom.afdm.g.m2', by.df='stream', by.g='n_lscp_name')
@@ -326,7 +337,7 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
                               
                               #remaining standstock end of timestep, using Temp q55 to create next timestep as this will be the final product
                               V(network)$POC_AFDMg <- V(network)$POC_sStock_AFDMg - V(network)$POC_loss_AFDMg_TQ
-                              
+                              print(sum(V(network)$POC_AFDMg))#test
                               ################
                               ### Calculate movement within basin
                               ### FPOC and DOC ###
@@ -442,11 +453,11 @@ scenarios_temperature <- lapply(scen[1], function(scen_temp){
       scale_fill_manual(values=c("blue", "#56B4E9", "brown"))+
       xlab("")+
       ylab("average gC per day")+
-      ggtitle(paste0("Landscape Observed Temperature-", scen_temp))
+      ggtitle(paste0("Landscape Temperature Scenarios-", scen_temp))
     ggsave(plot = p, filename = paste0("output/figures/CWT_", scen_temp, "_monthlyavg.png"))
     
     return(ts_all)
 }
 )#end scenario lapply
 
-saveRDS(scenarios_temperature, "output/data/scenarios_temperature_noserialC.RDS")
+saveRDS(scenarios_temperature, "output/data/scenarios_temperature_serialC.RDS")
