@@ -20,9 +20,9 @@ scen_T <- list(base = temp_sin, #base
                low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence 
                low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 18)
                )
-names(scen_T) #list the scen
+scen <- names(scen_T) #list the scen
 
-scenarios_temperature <- lapply(names(scen_T), function(scen_temp){
+scenarios_temperature <- lapply(scen[1], function(scen_temp){
   temp_sin <- scen_T[scen_temp][[1]]
   
     
@@ -31,8 +31,8 @@ scenarios_temperature <- lapply(names(scen_T), function(scen_temp){
     ###### Initialize ######
     ########################
     ## Read Example Watershed network in 
-    #net <- readRDS("data/eg_watershed.RDS")
-    net <- readRDS("data/network_intital.RDS")
+    net <- readRDS("data/eg_watershed.RDS") #examples  small wateshed WS37
+    #net <- readRDS("data/network_intital.RDS") #full Coweeta Watershed
     
     for(i in 1:length(V(net))){
       up.all <- ego(net,order=length(V(net)),nodes=V(net)[i],mode=c("in"),mindist=0)
@@ -121,8 +121,9 @@ scenarios_temperature <- lapply(names(scen_T), function(scen_temp){
         
     ####Direct and Lateral POC Inputs####
         #ClocalLit_AFDMg <- readRDS("data/ClocalLit_g.RDS")
-        ClocalLit_AFDMg <- readRDS("data/POM_In.RDS")%>%
-          dplyr::select(-2:-3) #remove by day values
+        ClocalLit_AFDMg <- readRDS("data/POM_In.RDS") #%>%
+          #dplyr::select(-2:-3) #remove by day values
+        
     #### Basin data
         V(net)$basin_id <- if_else(V(net)$basin_id == "CoweetaCreek", "ShopeFork", V(net)$basin_id)
         V(net)$basin_id <- if_else(is.na(V(net)$basin_id) == TRUE, "ShopeFork", V(net)$basin_id)
@@ -251,8 +252,7 @@ scenarios_temperature <- lapply(names(scen_T), function(scen_temp){
                                 #POC in - only using lateral
                                 # V(network)$ClocalLit_AFDMg <- (POM_input_mon$Cdirect_gm2hr *V(network)$Bedarea_m2) + #direct
                                 #                             (POM_input_mon$Clateral_gmhr * V(network)$length_reach * 2) #lateral
-                                V(network)$ClocalLit_AFDMg <- (POM_input_day$Cdirect_gm2hr *V(network)$Bedarea_m2) + #direct
-                                  (POM_input_day$Clateral_gmhr * V(network)$length_reach * 2) #lateral 
+                                V(network)$ClocalLit_AFDMg <- POM_input_day$Cin_gm2hr_all #added in cbom_organization.R  
                                 
                                 #If the flow is not negative, mutliply DOC seep value by reach Q added to get DOC from GW for the reach
                                 V(network)$DOC_local_gC <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
@@ -449,4 +449,4 @@ scenarios_temperature <- lapply(names(scen_T), function(scen_temp){
 }
 )#end scenario lapply
 
-saveRDS(scenarios_temperature, paste0("output/data/scenarios_temperature_noserialC.RDS"))
+saveRDS(scenarios_temperature, "output/data/scenarios_temperature_noserialC.RDS")
