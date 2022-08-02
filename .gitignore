@@ -43,3 +43,5 @@ animate/CWT_DOC_output1.png
 *.RData
 *.csv
 *.jpeg
+.RDataTmp4
+.RDataTmp3
