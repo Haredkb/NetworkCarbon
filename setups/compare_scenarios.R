@@ -148,11 +148,11 @@ Tsc_plus2t <- scenarios_temperature[[2]] %>%
          date_d = as.character(date_d))
 
 
-#compare_sc <- rbind(Tsc_baset, Tsc_plus2t, Tsc_deepGWt, Tsc_shalGWt, Tsc_noGWt, Tsc_shalGWt40)%>%#, Tsc_noGWt5)%>%
-compare_sc <- rbind(Tsc_baset, Tsc_deepGWt, Tsc_shalGWt, Tsc_noGWt, Tsc_shalGWt40)%>%#, Tsc_noGWt5)%>%
+compare_sc <- rbind(Tsc_baset, Tsc_plus2t, Tsc_deepGWt, Tsc_shalGWt, Tsc_noGWt, Tsc_shalGWt40, Tsc_noGWt5)%>%
+#compare_sc <- rbind(Tsc_baset, Tsc_deepGWt, Tsc_shalGWt, Tsc_noGWt, Tsc_shalGWt40)%>%#, Tsc_noGWt5)%>%
   mutate(date_d = as.Date(date_d, format = "%Y-%m-%d"),
-         #scenario = fct_relevel(as.factor(scenario), "Base", "Plus2", "NoGW", "ShalGW", "DeepGW", "ShalGW40"),#, "NoGW5"),
-         scenario = fct_relevel(as.factor(scenario), "Base", "NoGW", "ShalGW", "DeepGW", "ShalGW40"),#, "NoGW5"),
+         scenario = fct_relevel(as.factor(scenario), "Base", "Plus2", "NoGW", "ShalGW", "DeepGW", "ShalGW40"),#, "NoGW5"),
+         #scenario = fct_relevel(as.factor(scenario), "Base", "NoGW", "ShalGW", "DeepGW", "ShalGW40"),#, "NoGW5"),
          Jdate = yday(date_d)
          )
 
