@@ -138,12 +138,13 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     ##########################
     #### Read Input Data #####
     ##########################
-    ###read decomposition raw data
-    k_df <- readRDS("data/k_df.RDS")
-    #Modelled Microbial Lambda based on landscape data
-    mod_lamM <- readRDS("mod_w1_LM.RDS") #kc_lamM ~ q_55 + temp_55   - #k = 0.005 #Feb - April 2018 WS 37
-    #Modelled Fragmentation Lambda based on landscape data
-    mod_lamF <- readRDS("mod_w1_LF.RDS") #kc_lamF ~ q_55 + temp_55
+    # ###read decomposition raw data
+    # k_df <- readRDS("data/k_df.RDS")
+    # #Modelled Microbial Lambda based on landscape data
+    # mod_lamM <- readRDS("mod_w1_LM.RDS") #kc_lamM ~ q_55 + temp_55   - #k = 0.005 #Feb - April 2018 WS 37
+    # #Modelled Fragmentation Lambda based on landscape data
+    # mod_lamF <- readRDS("mod_w1_LF.RDS") #kc_lamF ~ q_55 + temp_55
+    mod_k <- readRDS("data/Model_CC.RDS")
     
     #CPOM 
     cpom_gm2 <- readRDS("data/cpom_gm2.RDS")
@@ -263,26 +264,55 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 #POC in - only using lateral
                                 # V(network)$ClocalLit_AFDMg <- (POM_input_mon$Cdirect_gm2hr *V(network)$Bedarea_m2) + #direct
                                 #                             (POM_input_mon$Clateral_gmhr * V(network)$length_reach * 2) #lateral
-                                V(network)$ClocalLit_AFDMg <- POM_input_day$Cin_gm2hr_all #added in cbom_organization.R  
+                                V(network)$ClocalLit_AFDMg <- POM_input_day$Cin_gm2hr_all *V(network)$Bedarea_m2 #added in cbom_organization.R  
                                 
                                 #If the flow is not negative, mutliply DOC seep value by reach Q added to get DOC from GW for the reach
                                 V(network)$DOC_local_gC <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
                                 
-                                ##Litter Breakdown temp and q55 dependence from landscape glm 
-                                #create data frame to calculate temperature and stream discharge dependence 
-                                mod_df <- data.frame(temp_55 = V(network)$tempC, q_55 = V(network)$Qout) %>%
-                                  dplyr::mutate(temp_55 = zoo::na.fill(temp_55, fill = "extend"),
-                                                q_55 = zoo::na.fill(q_55, fill = "extend"))
+                                # ##Litter Breakdown temp and q55 dependence from landscape glm 
+                                # #create data frame to calculate temperature and stream discharge dependence 
+                                # mod_df <- data.frame(temp_55 = V(network)$tempC, q_55 = V(network)$Qout) %>%
+                                #   dplyr::mutate(temp_55 = zoo::na.fill(temp_55, fill = "extend"),
+                                #                 q_55 = zoo::na.fill(q_55, fill = "extend"))
+                                # 
+                                # #need this extra step for fragmentation because of na (due to neg values)
+                                # k_TQ_lamF <- posterior_predict(mod_lamF,new = mod_df, type = "response")
+                                # k_TQ_lamF <- apply(k_TQ_lamF,2,median,na.rm = TRUE)
+                                # V(network)$k_TQ_lamF <- k_TQ_lamF
+                                # 
+                                # k_TQ_lamM <- posterior_predict(mod_lamM,new = mod_df, type = "response")
+                                # k_TQ_lamM <- apply(k_TQ_lamM,2,median,na.rm = TRUE)
+                                # V(network)$k_TQ_lamM <- k_TQ_lamM
                                 
-                                #need this extra step for fragmentation because of na (due to neg values)
-                                k_TQ_lamF <- posterior_predict(mod_lamF,new = mod_df, type = "response")
-                                k_TQ_lamF <- apply(k_TQ_lamF,2,median,na.rm = TRUE)
-                                V(network)$k_TQ_lamF <- k_TQ_lamF
                                 
-                                k_TQ_lamM <- posterior_predict(mod_lamM,new = mod_df, type = "response")
-                                k_TQ_lamM <- apply(k_TQ_lamM,2,median,na.rm = TRUE)
-                                V(network)$k_TQ_lamM <- k_TQ_lamM
+                                #########BREAKDOWN UPDATES##################
+                                ##k using carolyn's models##
+                                ##updated 2022-08-02## 
+
+                                #add scaled temp and q to the network
+                                V(network)$one.k.T.cent <-  (1/((V(network)$tempC + 273.15)* 8.62E-5)) - 40.66639
+                                V(network)$mean_flow_st = scale(V(network)$Qout, 93.58932, 205.6402) #scale the Qout absed on CC model, hardcoded but in "setup_data_for_CCmodel.R" #attr(mean_flow_sc, "scaled:center"), attr(mean_flow_sc, "scaled:scale"))
                                 
+                                #create input dataframe
+                                mod_df <- data.frame(one.k.T.cent = V(network)$one.k.T.cent, mean_flow_st = V(network)$mean_flow_st)
+                                mod_df$Type = "Microbes"
+                                mod_df$rhodo_acer = "A"
+                                
+                                #"A" for Acer and "M" for Microbes
+                                #https://stackoverflow.com/questions/28199140/using-lme4-modeling-to-predict-from-fixed-effects-values
+                                mod_AM <- predict(mod_k ,newdata=mod_df,re.form=~0)#treat as population, so no RE
+                                
+                                
+                                #create input dataframe
+                                mod_df <- data.frame(one.k.T.cent = V(network)$one.k.T.cent, mean_flow_st = V(network)$mean_flow_st)
+                                mod_df$Type = "Shredders"
+                                mod_df$rhodo_acer = "A"
+                                mod_AF <- predict(mod_k,newdata=mod_df,re.form=~0)#treat as population, so no RE
+                                
+                                #output into the network 
+                                V(network)$k_AM <- exp(mod_AM)
+                                V(network)$k_AF <- exp(mod_AF)
+                                V(network)$k_At <- V(network)$k_AM + V(network)$k_AF
                                 
                                 #############################
                                 ##Indicates this part of if statment run if there is no pre network, or the network is from the same day - no new Q, T or k values
@@ -325,32 +355,47 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               # V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$lambda_F/24)
                               # V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$lambda_M/24)
                               
-                              #Loss using temperature and q dependence
-                              V(network)$POC_loss_AFDMg_F_TQ <-  V(network)$POC_sStock_AFDMg * (V(network)$k_TQ_lamF/24)
-                              V(network)$POC_loss_gC_F_TQ <- V(network)$POC_loss_AFDMg_F_TQ *0.484 #convert gC
-                              V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F_TQ # I have two for clarity right now when conisdering transport in move_OC
-                              V(network)$POC_loss_AFDMg_M_TQ <-  V(network)$POC_sStock_AFDMg * (V(network)$k_TQ_lamM/24)
-                              V(network)$POC_loss_gC_M_TQ <- V(network)$POC_loss_AFDMg_M_TQ *0.484 #convert to gC
-                              V(network)$POC_loss_AFDMg_TQ   <- V(network)$POC_loss_AFDMg_F_TQ + V(network)$POC_loss_AFDMg_M_TQ
-                              V(network)$POC_loss_gC_TQ   <- V(network)$POC_loss_AFDMg_TQ *0.484
+                              # #Loss using temperature and q dependence
+                              # V(network)$POC_loss_AFDMg_F_TQ <-  V(network)$POC_sStock_AFDMg * (V(network)$k_TQ_lamF/24)
+                              # V(network)$POC_loss_gC_F_TQ <- V(network)$POC_loss_AFDMg_F_TQ *0.484 #convert gC
+                              # V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F_TQ # I have two for clarity right now when conisdering transport in move_OC
+                              # V(network)$POC_loss_AFDMg_M_TQ <-  V(network)$POC_sStock_AFDMg * (V(network)$k_TQ_lamM/24)
+                              # V(network)$POC_loss_gC_M_TQ <- V(network)$POC_loss_AFDMg_M_TQ *0.484 #convert to gC
+                              # V(network)$POC_loss_AFDMg_TQ   <- V(network)$POC_loss_AFDMg_F_TQ + V(network)$POC_loss_AFDMg_M_TQ
+                              # V(network)$POC_loss_gC_TQ   <- V(network)$POC_loss_AFDMg_TQ *0.484
+                              
+                              V(network)$k_AM
+                              
+                              #Loss using CREWS (CC) Ladnscape Model
+                              V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AF/24)
+                              V(network)$POC_loss_gC_F <- V(network)$POC_loss_AFDMg_F *0.484 #convert gC
+                              V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F # I have two for clarity right now when conisdering transport in move_OC
+                              V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AM/24)
+                              V(network)$POC_loss_gC_M <- V(network)$POC_loss_AFDMg_M *0.484 #convert to gC
+                              V(network)$POC_loss_AFDMg   <- V(network)$POC_loss_AFDMg_F + V(network)$POC_loss_AFDMg_M
+                              V(network)$POC_loss_gC   <- V(network)$POC_loss_AFDMg *0.484#convert to gC
                               
                               
-                              #remaining standstock end of timestep, using Temp q55 to create next timestep as this will be the final product
-                              V(network)$POC_AFDMg <- V(network)$POC_sStock_AFDMg - V(network)$POC_loss_AFDMg_TQ
+                              # #remaining standstock end of timestep, using Temp q55 to create next timestep as this will be the final product
+                              # V(network)$POC_AFDMg <- V(network)$POC_sStock_AFDMg - V(network)$POC_loss_AFDMg_TQ
+                              
+                              V(network)$POC_AFDMg <- V(network)$POC_sStock_AFDMg - V(network)$POC_loss_AFDMg
                               print(sum(V(network)$POC_AFDMg))#test
                               ################
-                              ### Calculate movement within basin
-                              ### FPOC and DOC ###
-                          if(!exists("network_pre")){
-                            #set up transport
-                            V(network)$FTOC_up <- 0
-                            V(network)$DOC_up <- 0
-                            V(network)$FTOC_out <- V(network)$FTOC_local
-                            V(network)$DOC_out <- V(network)$DOC_local_gC
-                          }else{
-                              network <- move_OC(network, network_pre)
-                              message("moveOC")
-                          }
+                              
+                              ### ADD IN FOR SERIAL###
+                          #     ### Calculate movement within basin
+                          #     ### FPOC and DOC ###
+                          # if(!exists("network_pre")){
+                          #   #set up transport
+                          #   V(network)$FTOC_up <- 0
+                          #   V(network)$DOC_up <- 0
+                          #   V(network)$FTOC_out <- V(network)$FTOC_local
+                          #   V(network)$DOC_out <- V(network)$DOC_local_gC
+                          # }else{
+                          #     network <- move_OC(network, network_pre)
+                          #     message("moveOC")
+                          # }
                       
                     ##set up environment for next timestep
                               #YES ASSIGNING TO THE GLOBAL IS FROWNED ON _ WILL CHANGE TO DIFFERNT ONE BUT WORKS!!!!! 
@@ -388,7 +433,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                             group_by(date_d) %>%
                                             summarise(
                                               C_LitterIn_gC = sum(ClocalLit_AFDMg, na.rm = TRUE) * 0.484,
-                                              C_breakdownTQ_gC = sum(POC_loss_AFDMg_TQ, na.rm = TRUE) * 0.484,
+                                              C_breakdown_gC = sum(POC_loss_AFDMg, na.rm = TRUE) * 0.484,
                                               #C_breakdown_g_ss_tIV = sum(POC_loss_AFDMg_ss_tIV),
                                               #C_breakdown_AFDMg = sum(POC_loss_AFDMg, na.rm = TRUE),
                                               C_gw_gC = sum(DOC_local_gC, na.rm = TRUE)
@@ -433,6 +478,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       pivot_longer(., cols = 2:4)%>%
       ggplot(.)+
       geom_smooth(aes(date_d, value, group = name, color = name))+
+      geom_line(aes(date_d, value, group = name, color = name))+
       scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
       xlab("")+
       ylab("total gC per day")
@@ -443,7 +489,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       mutate(month_dep = as.factor(month(date_d, label = TRUE))) %>%
       group_by(month_dep) %>%
       summarise(
-        POCbreakdown_TQ = mean(C_breakdownTQ_gC),
+        POCbreakdown = mean(C_breakdown_gC),
         DOCseep = mean(C_gw_gC),
         POCin = mean(C_LitterIn_gC))%>%
       pivot_longer(col = 2:4) #%>%#4)%>%
