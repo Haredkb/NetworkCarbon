@@ -110,6 +110,9 @@ ggplot(cbom_full) +
   geom_point(aes(x = Jdate, y = areal.afdm.gm2))+
   geom_point(data = cbom_pred, aes(x = Jdate, y = cbom_AFDM_gm2), color = "red")
 
+##############################################################################3
+#### C IN ####
+###########################################################
 #### Make the cin daily time stpes from monthly
 ClocalLit_AFDMg <- readRDS("data/ClocalLit_g.RDS")
 PL_day <- readRDS("./data/POM_lateral_day.RDS")
@@ -151,16 +154,17 @@ cIn_rollmean <- left_join(PD_day, PL_day, by = "Jdate") %>%
   mutate(Cin_gm2d = (lateral_gmd_avg * 2) + direct_gm2d_avg)%>%
   left_join(dates, .) %>%
   mutate( ##rule 2 to extrapolate as a constant value of the nearest extreme
-         Cin_gm2d_mean = rollapply(Cin_gm2d, width = 5, FUN= mean, partial = TRUE, na.rm = TRUE ),
-         Cin_gm2d_all = zoo::na.approx(Cin_gm2d_mean, rule =2 ),
-         Cin_gm2hr_all = Cin_gm2d_all/24 )
-          
+         Cin_gm2d_mean = rollapply(Cin_gm2d, width = 7, FUN= mean, partial = TRUE, na.rm = TRUE ),
+         Cin_gm2d_all_int = zoo::na.approx(Cin_gm2d_mean, rule =2),
+         Cin_gm2d_all = zoo::rollmean(Cin_gm2d_all_int, k = 7, na.pad = TRUE, align = "left"), #na at the end 
+         Cin_gm2d_all = if_else(is.na(Cin_gm2d_all) == TRUE, (3.2 + 1.1)/2 , Cin_gm2d_all), #if na avaerage last december and first jan values
+         Cin_gm2hr_all = Cin_gm2d_all/24)
 
 saveRDS(cIn_rollmean, "data/POM_In.RDS")
 
 ggplot()+
   geom_line(data = cIn, aes(x = Jdate, y = Cin_gm2d))+
   geom_point(data = cIn_rollmean, aes(Jdate, Cin_gm2d_mean))+
-  geom_point(data = cIn_rollmean, aes(Jdate, Cin_gm2d_spline), color = "blue")+
+  geom_point(data = cIn_rollmean, aes(Jdate, Cin_gm2d_all), color = "blue")+
   geom_point(data = cIn_Obs, aes(Jdate, Cin_gm2d), color = "red")
 

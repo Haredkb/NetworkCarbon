@@ -31,7 +31,7 @@ cpom <- read.csv("G:/My Drive/CREWS_official/200_Landscape/210_data_landscape/21
   mutate(date = as.Date(sample.date, format = "%m/%d/%Y"),
          Jdate = yday(date),
          #date diff is the time since october 1
-         date_diff = ifelse(Jdate > 274, Jdate - 274, Jdate + as.numeric(difftime(as.Date("01-01-2018", format = "%m-%d-%Y"), as.Date("10-01-2017", format = "%m-%d-%Y"), units = c("days")))))
+         date_diff = ifelse(Jdate > 172, Jdate - 172, Jdate + 193))#as.numeric(difftime(as.Date("01-01-2018", format = "%m-%d-%Y"), as.Date("10-01-2017", format = "%m-%d-%Y"), units = c("days")))))
 
 #create df that average replicate cpom samples 
 cpom_lndsp <- cpom %>%
@@ -40,15 +40,52 @@ cpom_lndsp <- cpom %>%
     cpom_ss_avg = mean(cbom.afdm.g.m2)
   )
 
+cpom_wsavg <- cpom %>%
+  mutate(month_d = month(date))%>%
+  group_by(month_d) %>%
+  dplyr::summarise(
+    cpom_ss_avg = mean(cbom.afdm.g.m2))%>%
+  mutate(Jdate = month_d * 30)
+
 #Determine average standing stock for the whole watershed
-cpom.lm <- lm(cpom_ss_avg ~ date_diff, cpom_lndsp) #intial standing stock based on whole basin
+#https://stats.stackexchange.com/questions/225653/periodic-splines-to-fit-periodic-data
+library(splines2)
+#t <- seq(0, 365, length.out = 800)
+
+pspline_fit <- lm(cpom_ss_avg ~ mSpline(x = Jdate, 
+                              df = 4, 
+                              periodic = TRUE, 
+                              Boundary.knots = c(1, 365)), data = cpom_wsavg)
+
+cpom_gm2 <- data.frame(Jdate = seq(1,365))
+#cpom_test <- cbind(cpom_gm2, as.data.frame(predict(pspline_fit, interval = "prediction")))
+
+
+cpom_gm2<- cbind(cpom_gm2, as.data.frame(predict(pspline_fit,cpom_gm2, interval="prediction")))
+cpom_gm2$cpom_fit <- cpom_gm2$fit
+pred_plot <- 
+  ggplot(cpom_gm2, aes(x = Jdate, y = fit)) + 
+  geom_point(data = cpom_wsavg, aes(Jdate, cpom_ss_avg))+
+  #geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) + 
+  geom_line(size = 1, colour = "blue") + 
+  geom_point() + 
+  theme_minimal()
+
+pred_plot
+  
+pred_plot + xlim(0, 365) + coord_polar()
+
+#cpom.lm <- lm(cpom_ss_avg ~ bs(date_diff), data = cpom_wsavg) #intial standing stock based on whole basin
 
 #create a df that predictes cpom for each date from october 1 (so we can fit a linear relationship)
-cpom_gm2 <- data.frame(date_diff = seq(1,365))
-cpom_gm2$cpom <-  predict.lm(cpom.lm, cpom_gm2)
+#cpom_gm2 <- data.frame(date_diff = seq(1,365)) #for linear
+#cpom_gm2$cpom <-  predict.lm(cpom.lm, cpom_gm2)
 
 #convert date_diff (days since Octoer 1) to Julian day for use in the model
-cpom_gm2$Jdate <- ifelse(cpom_gm2$date_diff <= 92, cpom_gm2$date_diff + 273, cpom_gm2$date_diff - 92)
+#cpom_gm2$Jdate <- ifelse(cpom_gm2$date_diff <= 172, cpom_gm2$date_diff + 193, cpom_gm2$date_diff - 172)
+
+plot(cpom_gm2$Jdate, cpom_gm2$cpom_fit)
+
 
 
 saveRDS(cpom_gm2, "data/cpom_gm2.RDS")

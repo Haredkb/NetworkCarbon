@@ -109,6 +109,7 @@ scen_T <- list(base = temp_sin, #base
                shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
                shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
                low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence 
+               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
                low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 18)
                )
 scen <- names(scen_T) #list the scen
@@ -189,7 +190,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               
                               #initialize date details
                               #pull timestep specific values for filtering 
-                              date_c <- as.character(t_s)
+                              date_c <- as.character(as.Date(t_s))
                               day <- yday(t_s)
                               mon <- month(t_s)
                               season <- quarter(t_s, fiscal_start = 1) #season starting with jan
@@ -247,7 +248,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 dplyr::filter(Jdate == day)
                           
                             ### Add Litter POC (direct and lateral) in
-                              set.seed(2)
+                              #set.seed(2)
                               # POM_input_mon <- ClocalLit_AFDMg %>%
                               #   dplyr::filter(month == mon)  
                               POM_input_day <- ClocalLit_AFDMg %>%
@@ -288,10 +289,14 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 #########BREAKDOWN UPDATES##################
                                 ##k using carolyn's models##
                                 ##updated 2022-08-02## 
-
+                                
+                                
+                                ####Input data was scaled before input into the Landscape LME model, so here I transform it using the same scaling (see "setup_data_for_CCmodel.R")
+                                # Temperature was just centered, Discharge was scaled and centered, and input k:breakdown was ln
                                 #add scaled temp and q to the network
                                 V(network)$one.k.T.cent <-  (1/((V(network)$tempC + 273.15)* 8.62E-5)) - 40.66639
-                                V(network)$mean_flow_st = scale(V(network)$Qout, 93.58932, 205.6402) #scale the Qout absed on CC model, hardcoded but in "setup_data_for_CCmodel.R" #attr(mean_flow_sc, "scaled:center"), attr(mean_flow_sc, "scaled:scale"))
+                                #have to cap flow at 1500cfs for k predictions, else predictions beccome exp and breakdown rates are >>> 1, 1500 was chosen as 1528 was the max input into the LME model 
+                                V(network)$mean_flow_st <-  if_else(V(network)$Qout > 1500, scale(1500, 93.58932, 205.6402), scale(V(network)$Qout, 93.58932, 205.6402)) #scale the Qout absed on CC model, hardcoded but in "setup_data_for_CCmodel.R" #attr(mean_flow_sc, "scaled:center"), attr(mean_flow_sc, "scaled:scale"))
                                 
                                 #create input dataframe
                                 mod_df <- data.frame(one.k.T.cent = V(network)$one.k.T.cent, mean_flow_st = V(network)$mean_flow_st)
@@ -310,7 +315,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 mod_AF <- predict(mod_k,newdata=mod_df,re.form=~0)#treat as population, so no RE
                                 
                                 #output into the network 
-                                V(network)$k_AM <- exp(mod_AM)
+                                V(network)$k_AM <- exp(mod_AM)#transform from ln 
                                 V(network)$k_AF <- exp(mod_AF)
                                 V(network)$k_At <- V(network)$k_AM + V(network)$k_AF
                                 
@@ -477,12 +482,23 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     p <- ts_day %>%
       pivot_longer(., cols = 2:4)%>%
       ggplot(.)+
-      geom_smooth(aes(date_d, value, group = name, color = name))+
       geom_line(aes(date_d, value, group = name, color = name))+
       scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
       xlab("")+
       ylab("total gC per day")
-    ggsave(plot = p,filename =  paste0("output/figures/", scen_temp, ".png"))
+    ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_", scen_temp, ".png"))
+    
+    p <- ts_day %>%
+      pivot_longer(., cols = 2:4)%>%
+      ggplot(.)+
+      geom_line(aes(Jdate, value, group = name, color = name))+
+      scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
+      xlab("")+
+      ylab("total gC per day")+
+      ggtitle("Temperature Scenarios: C Sources")+
+      theme_bw()+
+      xlim(0, 365) + coord_polar()
+    ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_rd_", scen_temp, ".png"))
     
     ################ Create summary table by date and gC from breakdown and gC from GW DOC
     network_ts_day_df <- ts_day %>%#network_ts_day_df %>% #do.call(rbind,  network_ts_day_ss_DEEP50) %>%
@@ -494,16 +510,18 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
         POCin = mean(C_LitterIn_gC))%>%
       pivot_longer(col = 2:4) #%>%#4)%>%
     
+    saveRDS(network_ts_day_df, paste0("output/data/network_ts_day_df_", scen_temp, "_noserialC.RDS"))
+    
     p <- ggplot(network_ts_day_df) +
       geom_col(aes(fct_relevel(month_dep, "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), value, fill = name), width=.5, position = "dodge")+
       scale_fill_manual(values=c("blue", "#56B4E9", "brown"))+
       xlab("")+
       ylab("average gC per day")+
       ggtitle(paste0("Landscape Temperature Scenarios-", scen_temp))
-    ggsave(plot = p, filename = paste0("output/figures/CWT_", scen_temp, "_monthlyavg.png"))
+    ggsave(plot = p, filename = paste0("output/figures/Cbalance_monthlyavg_", scen_temp, ".png"))
     
     return(ts_all)
 }
 )#end scenario lapply
 
-saveRDS(scenarios_temperature, "output/data/scenarios_temperature_serialC.RDS")
+saveRDS(scenarios_temperature, "output/data/scenarios_temperature_noserialC.RDS")
