@@ -109,7 +109,7 @@ scen_T <- list(base = temp_sin, #base
                shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
                shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
                low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence 
-               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
+               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
                low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 18)
                )
 scen <- names(scen_T) #list the scen
@@ -389,18 +389,18 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               ################
                               
                               ### ADD IN FOR SERIAL###
-                          #     ### Calculate movement within basin
-                          #     ### FPOC and DOC ###
-                          # if(!exists("network_pre")){
-                          #   #set up transport
-                          #   V(network)$FTOC_up <- 0
-                          #   V(network)$DOC_up <- 0
-                          #   V(network)$FTOC_out <- V(network)$FTOC_local
-                          #   V(network)$DOC_out <- V(network)$DOC_local_gC
-                          # }else{
-                          #     network <- move_OC(network, network_pre)
-                          #     message("moveOC")
-                          # }
+                              ### Calculate movement within basin
+                              ### FPOC and DOC ###
+                          if(!exists("network_pre")){
+                            #set up transport
+                            V(network)$FTOC_up <- 0
+                            V(network)$DOC_up <- 0
+                            V(network)$FTOC_out <- V(network)$FTOC_local
+                            V(network)$DOC_out <- V(network)$DOC_local_gC
+                          }else{
+                              network <- move_OC(network, network_pre)
+                              message("moveOC")
+                          }
                       
                     ##set up environment for next timestep
                               #YES ASSIGNING TO THE GLOBAL IS FROWNED ON _ WILL CHANGE TO DIFFERNT ONE BUT WORKS!!!!! 
@@ -470,8 +470,8 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     
     ############Data Output #####################################
     # For saving data
-    saveRDS(net_lst, paste0("output/data/net_lst_",scen_temp,"_noserialC.RDS"))
-    saveRDS(ts_all, paste0("output/data/network_ts_all_", scen_temp, "_noserialC.RDS"))
+    saveRDS(net_lst, paste0("output/data/net_lst_",scen_temp,"_serialC.RDS"))
+    saveRDS(ts_all, paste0("output/data/network_ts_all_", scen_temp, "_serialC.RDS"))
     # write.csv(ts_all, "output/data/network_ts_all_lowGW_direct_noserialC.csv")
     # saveRDS(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.RDS")
     # write.csv(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.csv")
@@ -488,17 +488,17 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       ylab("total gC per day")
     ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_", scen_temp, ".png"))
     
-    p <- ts_day %>%
-      pivot_longer(., cols = 2:4)%>%
-      ggplot(.)+
-      geom_line(aes(Jdate, value, group = name, color = name))+
-      scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
-      xlab("")+
-      ylab("total gC per day")+
-      ggtitle("Temperature Scenarios: C Sources")+
-      theme_bw()+
-      xlim(0, 365) + coord_polar()
-    ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_rd_", scen_temp, ".png"))
+    # p <- ts_day %>%
+    #   pivot_longer(., cols = 2:4)%>%
+    #   ggplot(.)+
+    #   geom_line(aes(Jdate, value, group = name, color = name))+
+    #   scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
+    #   xlab("")+
+    #   ylab("total gC per day")+
+    #   ggtitle("Temperature Scenarios: C Sources")+
+    #   theme_bw()+
+    #   xlim(0, 365) + coord_polar()
+    # ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_rd_", scen_temp, ".png"))
     
     ################ Create summary table by date and gC from breakdown and gC from GW DOC
     network_ts_day_df <- ts_day %>%#network_ts_day_df %>% #do.call(rbind,  network_ts_day_ss_DEEP50) %>%
@@ -510,7 +510,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
         POCin = mean(C_LitterIn_gC))%>%
       pivot_longer(col = 2:4) #%>%#4)%>%
     
-    saveRDS(network_ts_day_df, paste0("output/data/network_ts_day_df_", scen_temp, "_noserialC.RDS"))
+    saveRDS(network_ts_day_df, paste0("output/data/network_ts_day_df_", scen_temp, "_serialC.RDS"))
     
     p <- ggplot(network_ts_day_df) +
       geom_col(aes(fct_relevel(month_dep, "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), value, fill = name), width=.5, position = "dodge")+
@@ -523,5 +523,5 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     return(ts_all)
 }
 )#end scenario lapply
-
-saveRDS(scenarios_temperature, "output/data/scenarios_temperature_noserialC.RDS")
+#saveRDS(scenarios_temperature, "output/data/base_serialC.RDS")
+saveRDS(scenarios_temperature, "output/data/scenarios_temperature_serialC.RDS")
