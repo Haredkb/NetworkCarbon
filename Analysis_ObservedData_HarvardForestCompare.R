@@ -3,7 +3,8 @@
 ##Coweeta Carbon Network Analysis##
 ###################################
 ###################################
-
+## Coweeta Average Air Temperature  12.8 C (cs01 met Jan 2003 - Dec 2018); CWT Leaf Drop Data max (~50%), is Jday 316
+## Harvard Forest Average Air Temperature  8.3 C (2003 - 2021); HVF Acer Leaf Drop is 280 Lee et al. 2003
 #source all req packages and scripts
 source("R/global.R")
 
@@ -103,14 +104,14 @@ if(var == "Y"){
 #temp_sin <- rbind(temp_scen, temp_sin) 
 
 temp_sin <- readRDS("data/temp_sin.RDS")
-scen_T <- list(base = temp_sin, #base
-               base2 = mutate(temp_sin, ymean=  ymean + 2), #base + 2
-               deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 12), #deep GW
-               shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
-               shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
-               low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence 
-               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
-               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 18)
+scen_T <- list(base_harvF = mutate(temp_sin, ymean=  8.3),
+               base_harvF2 = mutate(temp_sin, ymean=  10.3),
+               deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 8), #deep GW
+               shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 8),#shallow GW
+               shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 8),#shallow GW
+               low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 9), #minimal GW influence 
+               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 11),
+               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 13)
                )
 scen <- names(scen_T) #list the scen
 
@@ -157,7 +158,8 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
         
     ####Direct and Lateral POC Inputs####
         #ClocalLit_AFDMg <- readRDS("data/ClocalLit_g.RDS")
-        ClocalLit_AFDMg <- readRDS("data/POM_In.RDS") #%>%
+        ClocalLit_AFDMg <- readRDS("data/POM_In.RDS")%>% #CWT data 
+                  mutate(Jdate = if_else((Jdate - 36) > 0, Jdate - 36, Jdate + 329))#- 36 days, which changes the leaf drop to reflect Acer drop in Havard Forest Lee et al. 2003 (280 Jday)
           #dplyr::select(-2:-3) #remove by day values
         
 
@@ -262,9 +264,9 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 V(network)$ss_POC_l <- cpom_ts$cpom_fit   #makeVertexAtt(network, df=cpom_ts, vname='cbom')#vname='cbom.afdm.g.m2', by.df='stream', by.g='n_lscp_name')
                                 V(network)$ss_POC <- V(network)$Bedarea_m2 * V(network)$ss_POC_l #initial POC standing stock, only used in first time step
                                 
-                                #POC in - using both direct and lateral is essential, as direct is only m2 which is strongly dependant on the width estimate, while lateral is consistent as assocaited wiht length
+                                #POC in - #added in cbom_organization.R  
                                 V(network)$ClocalLit_AFDMg <- (POM_input_day$Cdirect_gm2hr_ *V(network)$Bedarea_m2) + #direct
-                                              (POM_input_day$Clateral_gmhr_ * V(network)$length_reach * 2) #lateral #added in cbom_organization.R  
+                                                            (POM_input_day$Clateral_gmhr_ * V(network)$length_reach * 2) #lateral
                                 
                                 #If the flow is not negative, mutliply DOC seep value by reach Q added to get DOC from GW for the reach
                                 V(network)$DOC_local_gC <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
@@ -387,20 +389,22 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               print(sum(V(network)$POC_AFDMg))#test
                               ################
                               
-                              ### ADD IN FOR SERIAL###
-                              ### Calculate movement within basin
-                              ### FPOC and DOC ###
-                          if(!exists("network_pre")){
-                            #set up transport
-                            V(network)$FTOC_up <- 0
-                            V(network)$DOC_up <- 0
-                            V(network)$FTOC_out <- V(network)$FTOC_local
-                            V(network)$DOC_out <- V(network)$DOC_local_gC
-                          }else{
-                              network <- move_OC(network, network_pre)
-                              message("moveOC")
-                          }
-                      
+                ### ADD IN FOR SERIAL###
+                # ####################################################
+                #           ### Calculate movement within basin
+                #           ### FPOC and DOC ###
+                #           if(!exists("network_pre")){
+                #             #set up transport
+                #             V(network)$FTOC_up <- 0
+                #             V(network)$DOC_up <- 0
+                #             V(network)$FTOC_out <- V(network)$FTOC_local
+                #             V(network)$DOC_out <- V(network)$DOC_local_gC
+                #           } else {
+                #               network <- move_OC(network, network_pre)
+                #               message("moveOC")
+                #           }
+              ######################################################################
+                              
                     ##set up environment for next timestep
                               #YES ASSIGNING TO THE GLOBAL IS FROWNED ON _ WILL CHANGE TO DIFFERNT ONE BUT WORKS!!!!! 
                               assign("network_pre", network, envir = .GlobalEnv)
@@ -408,8 +412,10 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               return(network)
                               
                       })
+
               
-              
+              #remove network_pre for scenario running
+              rm(network_pre)
               ##################
               ### OUTPUT #######
               ##################
@@ -419,7 +425,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
               # ts_all <- data.frame(matrix(ncol = length(network_cols), nrow = 0))
               
               #remoev first list in network list as there is no transport
-              # net_lst[[1]] <- NULL
+              #net_lst[[1]] <- NULL
               
               #"convert igraphs to dataframe baed on vertices attribtues
               ts_all <-  lapply(net_lst, function(i){ # start with second one as the first timestep doesnt have transport.
@@ -469,8 +475,8 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     
     ############Data Output #####################################
     # For saving data
-    saveRDS(net_lst, paste0("output/data/net_lst_",scen_temp,"_serialC.RDS"))
-    saveRDS(ts_all, paste0("output/data/network_ts_all_", scen_temp, "_serialC.RDS"))
+    saveRDS(net_lst, paste0("output/harvardF/data/net_lst_",scen_temp,"_noserialC.RDS"))
+    saveRDS(ts_all, paste0("output/harvardF/data/network_ts_all_", scen_temp, "_noserialC.RDS"))
     # write.csv(ts_all, "output/data/network_ts_all_lowGW_direct_noserialC.csv")
     # saveRDS(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.RDS")
     # write.csv(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.csv")
@@ -485,7 +491,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       scale_color_manual(values=c("#56B4E9", "blue", "brown"))+
       xlab("")+
       ylab("total gC per day")
-    ggsave(plot = p,filename =  paste0("output/figures/CBalance_timeseries_", scen_temp, ".png"))
+    ggsave(plot = p,filename =  paste0("output/harvardF/figures/CBalance_timeseries_", scen_temp, ".png"))
     
     # p <- ts_day %>%
     #   pivot_longer(., cols = 2:4)%>%
@@ -509,7 +515,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
         POCin = mean(C_LitterIn_gC))%>%
       pivot_longer(col = 2:4) #%>%#4)%>%
     
-    saveRDS(network_ts_day_df, paste0("output/data/network_ts_day_df_", scen_temp, "_serialC.RDS"))
+    saveRDS(network_ts_day_df, paste0("output/harvardF/data/network_ts_day_df_", scen_temp, "_noserialC.RDS"))
     
     p <- ggplot(network_ts_day_df) +
       geom_col(aes(fct_relevel(month_dep, "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), value, fill = name), width=.5, position = "dodge")+
@@ -517,10 +523,10 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       xlab("")+
       ylab("average gC per day")+
       ggtitle(paste0("Landscape Temperature Scenarios-", scen_temp))
-    ggsave(plot = p, filename = paste0("output/figures/Cbalance_monthlyavg_", scen_temp, ".png"))
+    ggsave(plot = p, filename = paste0("output/harvardF/figures/Cbalance_monthlyavg_", scen_temp, ".png"))
     
     return(ts_all)
 }
 )#end scenario lapply
-#saveRDS(scenarios_temperature, "output/data/base_serialC.RDS")
-saveRDS(scenarios_temperature, "output/data/scenarios_temperature_serialC.RDS")
+#saveRDS(scenarios_temperature, "output/harvardF/data/base_serialC.RDS")
+saveRDS(scenarios_temperature, "output/harvardF/data/scenarios_temperature_noserialC.RDS")
