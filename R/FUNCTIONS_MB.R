@@ -37,7 +37,7 @@ for(i in 1:length(V(network))){
     if(is.na(up) == FALSE){
       V(network)$Qup[i] <- sum(V(network)$Qout[up]) #only one or junction will have two
     }  else{
-      V(network)$Qup[i] =  0 
+      V(network)$Qup[i] =  0 #for origin nodes
     }
       
     
@@ -92,8 +92,8 @@ move_OC <- function(network, network_pre){
   for(i in 1:length(V(network))){
 
     ##NOTE FPOC is in ADFM and DOC is in gm3
-    if(V(network)[i]$up.all > 1){
-      up <- as.numeric(unlist(strsplit(V(network)[i]$up, split= ",")))
+    if(V(network)[i]$up.all > 1){ #if there are contributing nodes (not orgin sites)
+      up <- as.numeric(unlist(strsplit(V(network)[i]$up, split= ","))) #directly contributing nodes - assumes every timestep (here hourly, all transported carbon moves to next downstream reach)
       V(network)$DOC_up[i] <- sum(V(network_pre)$DOC_out[up], na.rm = TRUE) #sum the DOC_out from the previous timestep - amount that has come to the reach
       V(network)$DOC_out[i] <- V(network)$DOC_up[i] + V(network)$DOC_local_gC[i] #add DOC from upstream from previous timestep to the DOC local from the current timestep
       V(network)$FTOC_up[i] <- sum(V(network_pre)$FTOC_out[up], na.rm = TRUE)
