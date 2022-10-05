@@ -39,6 +39,7 @@ vignettes/*.pdf
 .Renviron
 .RDataTmp2
 animate/CWT_DOC_output1.png
+output/figures/*
 *.png
 *.RData
 *.csv
@@ -114,3 +115,7 @@ output/data/network_ts_day_intial_noserialC.RDS
 output/data/network_ts_all_intial_noserialC.RDS
 output/data/network_ts_all_intial_noserialC.RDS
 output/data/network_ts_day_intial_noserialC.RDS
+output/data/net_lst_low_GW_2_noserialC.RDS
+
+output\data\net_lst_low_GW_2_noserialC.RDS
+*.RDS
