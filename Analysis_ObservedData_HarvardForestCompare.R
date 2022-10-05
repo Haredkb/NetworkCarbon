@@ -106,16 +106,17 @@ if(var == "Y"){
 temp_sin <- readRDS("data/temp_sin.RDS")
 scen_T <- list(base_harvF = mutate(temp_sin, ymean=  8.3),
                base_harvF2 = mutate(temp_sin, ymean=  10.3),
-               deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 8), #deep GW
-               shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 8),#shallow GW
-               shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 8),#shallow GW
-               low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 9), #minimal GW influence 
-               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 11),
-               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 13)
+               base_280d = temp_sin, #keep same temperature, but POC inputs will be shifted. 
+               deepGW_harF = mutate(temp_sin, amp = 4, phase = 200, ymean = 8), #deep GW
+               shalGW_harvF = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 8),#shallow GW
+               #shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 8),#shallow GW
+               lowGW_harvF = mutate(temp_sin, amp = 9, phase = 200, ymean = 9)#, #minimal GW influence 
+               # low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 11),
+               # low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 13)
                )
 scen <- names(scen_T) #list the scen
 
-scenarios_temperature <- lapply(scen, function(scen_temp){
+scenarios_HarvF <- lapply(scen, function(scen_temp){
   temp_sin <- scen_T[scen_temp][[1]]
   
     #set up output dataframe
@@ -130,7 +131,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     ############################
     #define hour time steps and units
     ##############################
-    timesteps = (24 * 365) -1 #minus one hour to end on correct day
+    timesteps = (24 * 465) -1 #minus one hour to end on correct day
     ts_units = "hour" #hour'
     # Set up model run times start dates
     #intial_dates = as.POSIXct(c("08-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
@@ -190,6 +191,13 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               ##what was the previous time step , fifelse presevers type and class of inputs this catches daylight savings
                               ts_pre <- dplyr::if_else(is.na(t_s - hours(1)) == TRUE, t_s - hours(2), t_s - hours(1)) 
                               
+                              
+                              #for longer model runs than 1 year, after july 31, 2019, change back to 2018 - this is only for the Q discharge data
+                              int_date = as.POSIXct("07-31-2019 23:00", format = "%m-%d-%Y %H:%M")#("10-01-2018 00:00", format = "%m-%d-%Y %H:%M")
+                              t_s_Q <- if_else(t_s > int_date, `year<-`(t_s, 2018), t_s)
+                              date_cQ <- as.character(as.Date(t_s_Q))
+                              
+                              
                               #initialize date details
                               #pull timestep specific values for filtering 
                               date_c <- as.character(as.Date(t_s))
@@ -205,7 +213,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                       ### Discharge ######
                       ####################
                       #if there is no previous network (eg start of the session), or there is a new day pull the correct date baseQ (standing stock will be still use previous timestep)
-                      network <- net_lstQ[[date_c]] #pull the correct network generated from baseQ data
+                      network <- net_lstQ[[date_cQ]] #pull the correct network generated from baseQ data
                       
                       #add date to igraph
                       V(network)$date <- as.character(t_s)  #, format = "%Y-%m-%d")
@@ -333,16 +341,25 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               
     
                                  
-                          #########################################
-                          ##-----POC STANDING STOCK CALC-------- ##
-                          #########################################
+                              #########################################
+                              ##-----POC STANDING STOCK CALC-------- ##
+                              #########################################
                               #POC IN hourly, sum direct input and lateral - assume direct for full width 
                               ### Previous Time Step to determine present standing stock for reach length (sStock)
                               if(!exists("network_pre")){
-    
-    
-                                V(network)$POC_sStock_AFDMg <- V(network)$ss_POC + V(network)$ClocalLit_AFDMg 
-                              
+                                
+                                #have no breakdown first timestep so the intial value should be the same for all scenarios. 
+                                V(network)$POC_sStock_AFDMg <- V(network)$ss_POC #+ V(network)$ClocalLit_AFDMg 
+                                
+                                V(network)$POC_loss_AFDMg_F <-  0
+                                V(network)$POC_loss_gC_F <- 0
+                                V(network)$FTOC_local <- 0
+                                V(network)$POC_loss_AFDMg_M <-  0
+                                V(network)$POC_loss_gC_M <- 0
+                                V(network)$POC_loss_AFDMg   <- 0
+                                V(network)$POC_loss_gC   <- 0
+                                
+                                
                                 
                                 #standing stock
                                 message("No PRE")
@@ -351,10 +368,20 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               } else({
                                 #use previous time step POC standingstock + litter in 
                                 V(network)$POC_sStock_AFDMg <- V(network_pre)$POC_AFDMg + V(network)$ClocalLit_AFDMg
+                                
+                                V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AF/24)
+                                V(network)$POC_loss_gC_F <- V(network)$POC_loss_AFDMg_F *0.484 #convert gC
+                                V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F # I have two for clarity right now when conisdering transport in move_OC
+                                V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AM/24)
+                                V(network)$POC_loss_gC_M <- V(network)$POC_loss_AFDMg_M *0.484 #convert to gC
+                                V(network)$POC_loss_AFDMg   <- V(network)$POC_loss_AFDMg_F + V(network)$POC_loss_AFDMg_M
+                                V(network)$POC_loss_gC   <- V(network)$POC_loss_AFDMg *0.484#convert to gC
+                                
+                                
                                 message("Yes PRE")
-                              
+                                
                               })
-              
+                              
                               #POC standing Stock Loss percent per hour
                               # #Loss using Landscape k values
                               # V(network)$POC_loss_AFDMg   <- V(network)$POC_sStock_AFDMg * (V(network)$k_coarse/24) #0.041 october coarse Acer WS37 # 0.005  March Coarse Acer WS37 #placeholder (loss as positive value)
@@ -373,13 +400,6 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               V(network)$k_AM
                               
                               #Loss using CREWS (CC) Ladnscape Model
-                              V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AF/24)
-                              V(network)$POC_loss_gC_F <- V(network)$POC_loss_AFDMg_F *0.484 #convert gC
-                              V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F # I have two for clarity right now when conisdering transport in move_OC
-                              V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AM/24)
-                              V(network)$POC_loss_gC_M <- V(network)$POC_loss_AFDMg_M *0.484 #convert to gC
-                              V(network)$POC_loss_AFDMg   <- V(network)$POC_loss_AFDMg_F + V(network)$POC_loss_AFDMg_M
-                              V(network)$POC_loss_gC   <- V(network)$POC_loss_AFDMg *0.484#convert to gC
                               
                               
                               # #remaining standstock end of timestep, using Temp q55 to create next timestep as this will be the final product
@@ -529,4 +549,4 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
 }
 )#end scenario lapply
 #saveRDS(scenarios_temperature, "output/harvardF/data/base_serialC.RDS")
-saveRDS(scenarios_temperature, "output/harvardF/data/scenarios_temperature_noserialC.RDS")
+saveRDS(scenarios_HarvF, "output/harvardF/data/scenarios_HarvF_noserialC.RDS")

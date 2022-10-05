@@ -3,7 +3,8 @@
 ##Coweeta Carbon Network Analysis##
 ###################################
 ###################################
-
+## Coweeta Average Air Temperature  12.8 C (cs01 met Jan 2003 - Dec 2018)
+## Harvard Forest Average Air Temperature  8.3 C (2003 - 2021)
 #source all req packages and scripts
 source("R/global.R")
 
@@ -103,14 +104,16 @@ if(var == "Y"){
 #temp_sin <- rbind(temp_scen, temp_sin) 
 
 temp_sin <- readRDS("data/temp_sin.RDS")
-scen_T <- list(base = temp_sin, #base
-               base2 = mutate(temp_sin, ymean=  ymean + 2), #base + 2
-               deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 12), #deep GW
-               shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
-               shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
-               low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence 
-               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
-               low_GW_5 = mutate(temp_sin, amp = 9, phase = 200, ymean = 18)
+scen_T <- list(
+               #  base = temp_sin, #base
+               # base2 = mutate(temp_sin, ymean=  ymean + 2), #base + 2
+               # deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 12), #deep GW
+               # shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
+               # shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
+               # low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence
+               # low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
+               # low_GW_4 = mutate(temp_sin, amp = 9, phase = 200, ymean = 17),
+               shalGW_0 = mutate(temp_sin, amp = 5.5, phase = 200, ymean = 12)
                )
 scen <- names(scen_T) #list the scen
 
@@ -129,7 +132,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     ############################
     #define hour time steps and units
     ##############################
-    timesteps = (24 * 365) -1 #minus one hour to end on correct day
+    timesteps = 2* (24 * 365) -1 #minus one hour to end on correct day
     ts_units = "hour" #hour'
     # Set up model run times start dates
     #intial_dates = as.POSIXct(c("08-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
@@ -161,7 +164,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
           #dplyr::select(-2:-3) #remove by day values
         
 
-    
+
     ####################################
     #SETTING UP INITIAL DATE FOR THE RUN,
     ####################################
@@ -177,20 +180,37 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
               ##for loop for each time step
               #water yield, doc yield, litter inputs, temperature
                       dates <- seq(from = as.POSIXct(s_date), to = as.POSIXct(s_date + hours(timesteps)), by = "hour")
-              
-              #REMOVE OBJECT TO REFRESH ENVIRONMENT        
-                    if(exists("network_pre")){
-                      rm(network_pre)} #remove from global env
+                      #remove leap day
+                      dates1 <- as.data.frame(dates)%>%
+                        .[!(format(.$dates,"%m") == "02" & format(.$dates, "%d") == "29"), , drop = FALSE]
+                      dates <- dates1$dates
                       
+                      #env_network <- new.env(parent = emptyenv())
+              #REMOVE OBJECT TO REFRESH ENVIRONMENT        
+                    if(exists("network_pre")){#, envir = env_network)){
+                      
+                      #rm("network_pre", envir = env_network)
+                      rm(network_pre, inherits = TRUE) #If inherits is TRUE then parents of the supplied directory are searched until a variable with the given name is encountered.
+                      
+                      } #remove from env
+                      
+                      
+                  
               ##HOURLY IME STEPS        
-              net_lst <- lapply(dates, function(t_s, env = parent.frame(), inherits = FALSE){
+              net_lst <- lapply(dates, function(t_s, env = parent.frame(), inherits = FALSE){#env = env_network, inherits = FALSE){#
                               print(t_s)#print current time step
                               ##what was the previous time step , fifelse presevers type and class of inputs this catches daylight savings
                               ts_pre <- dplyr::if_else(is.na(t_s - hours(1)) == TRUE, t_s - hours(2), t_s - hours(1)) 
                               
                               #initialize date details
                               #pull timestep specific values for filtering 
-                              date_c <- as.character(as.Date(t_s))
+                              
+                              #for longer model runs than 1 year, after july 31, 2019, change back to 2018 - this is only for the Q discharge data
+                              int_date = as.POSIXct("07-31-2019 23:00", format = "%m-%d-%Y %H:%M")#("10-01-2018 00:00", format = "%m-%d-%Y %H:%M")
+                              #t_s_Q <- if_else(t_s > int_date, `year<-`(t_s, 2018), t_s)
+                              
+                              
+                              date_cQ <- as.character(yday(as.Date(t_s)))
                               day <- yday(t_s)
                               mon <- month(t_s)
                               season <- quarter(t_s, fiscal_start = 1) #season starting with jan
@@ -203,7 +223,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                       ### Discharge ######
                       ####################
                       #if there is no previous network (eg start of the session), or there is a new day pull the correct date baseQ (standing stock will be still use previous timestep)
-                      network <- net_lstQ[[date_c]] #pull the correct network generated from baseQ data
+                      network <- net_lstQ[[date_cQ]] #pull the correct network generated from baseQ data
                       
                       #add date to igraph
                       V(network)$date <- as.character(t_s)  #, format = "%Y-%m-%d")
@@ -262,10 +282,9 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                                 V(network)$ss_POC_l <- cpom_ts$cpom_fit   #makeVertexAtt(network, df=cpom_ts, vname='cbom')#vname='cbom.afdm.g.m2', by.df='stream', by.g='n_lscp_name')
                                 V(network)$ss_POC <- V(network)$Bedarea_m2 * V(network)$ss_POC_l #initial POC standing stock, only used in first time step
                                 
-                                #POC in - only using lateral
-                                # V(network)$ClocalLit_AFDMg <- (POM_input_mon$Cdirect_gm2hr *V(network)$Bedarea_m2) + #direct
-                                #                             (POM_input_mon$Clateral_gmhr * V(network)$length_reach * 2) #lateral
-                                V(network)$ClocalLit_AFDMg <- POM_input_day$Cin_gm2hr_all *V(network)$Bedarea_m2 #added in cbom_organization.R  
+                                #POC in - using both direct and lateral is essential, as direct is only m2 which is strongly dependant on the width estimate, while lateral is consistent as assocaited wiht length
+                                V(network)$ClocalLit_AFDMg <- (POM_input_day$Cdirect_gm2hr_ *V(network)$Bedarea_m2) + #direct
+                                  (POM_input_day$Clateral_gmhr_ * V(network)$length_reach * 2) #lateral #added in cbom_organization.R  
                                 
                                 #If the flow is not negative, mutliply DOC seep value by reach Q added to get DOC from GW for the reach
                                 V(network)$DOC_local_gC <- if_else(DOC_seep_table_mon$doc_mgL * V(network)$Qlocal < 0, 0, DOC_seep_table_mon$doc_mgL * V(network)$Qlocal) # *1000 / 1000 mg / L <- g/m3
@@ -339,8 +358,17 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               ### Previous Time Step to determine present standing stock for reach length (sStock)
                               if(!exists("network_pre")){
     
-    
-                                V(network)$POC_sStock_AFDMg <- V(network)$ss_POC + V(network)$ClocalLit_AFDMg 
+                                #have no breakdown first timestep so the intial value should be the same for all scenarios. 
+                                V(network)$POC_sStock_AFDMg <-  V(network)$ClocalLit_AFDMg  #V(network)$ss_POC #+ #no longer start with value as I run for 100 days. 
+                                
+                                V(network)$POC_loss_AFDMg_F <-  0
+                                V(network)$POC_loss_gC_F <- 0
+                                V(network)$FTOC_local <- 0
+                                V(network)$POC_loss_AFDMg_M <-  0
+                                V(network)$POC_loss_gC_M <- 0
+                                V(network)$POC_loss_AFDMg   <- 0
+                                V(network)$POC_loss_gC   <- 0
+                                
                               
                                 
                                 #standing stock
@@ -350,6 +378,16 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               } else({
                                 #use previous time step POC standingstock + litter in 
                                 V(network)$POC_sStock_AFDMg <- V(network_pre)$POC_AFDMg + V(network)$ClocalLit_AFDMg
+                                
+                                V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AF/24)
+                                V(network)$POC_loss_gC_F <- V(network)$POC_loss_AFDMg_F *0.484 #convert gC
+                                V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F # I have two for clarity right now when conisdering transport in move_OC
+                                V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AM/24)
+                                V(network)$POC_loss_gC_M <- V(network)$POC_loss_AFDMg_M *0.484 #convert to gC
+                                V(network)$POC_loss_AFDMg   <- V(network)$POC_loss_AFDMg_F + V(network)$POC_loss_AFDMg_M
+                                V(network)$POC_loss_gC   <- V(network)$POC_loss_AFDMg *0.484#convert to gC
+                                
+                                
                                 message("Yes PRE")
                               
                               })
@@ -372,14 +410,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               V(network)$k_AM
                               
                               #Loss using CREWS (CC) Ladnscape Model
-                              V(network)$POC_loss_AFDMg_F <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AF/24)
-                              V(network)$POC_loss_gC_F <- V(network)$POC_loss_AFDMg_F *0.484 #convert gC
-                              V(network)$FTOC_local <- V(network)$POC_loss_AFDMg_F # I have two for clarity right now when conisdering transport in move_OC
-                              V(network)$POC_loss_AFDMg_M <-  V(network)$POC_sStock_AFDMg * (V(network)$k_AM/24)
-                              V(network)$POC_loss_gC_M <- V(network)$POC_loss_AFDMg_M *0.484 #convert to gC
-                              V(network)$POC_loss_AFDMg   <- V(network)$POC_loss_AFDMg_F + V(network)$POC_loss_AFDMg_M
-                              V(network)$POC_loss_gC   <- V(network)$POC_loss_AFDMg *0.484#convert to gC
-                              
+
                               
                               # #remaining standstock end of timestep, using Temp q55 to create next timestep as this will be the final product
                               # V(network)$POC_AFDMg <- V(network)$POC_sStock_AFDMg - V(network)$POC_loss_AFDMg_TQ
@@ -406,7 +437,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
                               
                     ##set up environment for next timestep
                               #YES ASSIGNING TO THE GLOBAL IS FROWNED ON _ WILL CHANGE TO DIFFERNT ONE BUT WORKS!!!!! 
-                              assign("network_pre", network, envir = .GlobalEnv)
+                              assign("network_pre", network, envir = .GlobalEnv)#env_network
                               message(Sys.time())
                               return(network)
                               
@@ -414,7 +445,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
 
               
               #remove network_pre for scenario running
-              rm(network_pre)
+            
               ##################
               ### OUTPUT #######
               ##################
@@ -424,7 +455,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
               # ts_all <- data.frame(matrix(ncol = length(network_cols), nrow = 0))
               
               #remoev first list in network list as there is no transport
-              net_lst[[1]] <- NULL
+              #net_lst[[1]] <- NULL
               
               #"convert igraphs to dataframe baed on vertices attribtues
               ts_all <-  lapply(net_lst, function(i){ # start with second one as the first timestep doesnt have transport.
@@ -474,8 +505,8 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     
     ############Data Output #####################################
     # For saving data
-    saveRDS(net_lst, paste0("output/data/net_lst_",scen_temp,"_serialC.RDS"))
-    saveRDS(ts_all, paste0("output/data/network_ts_all_", scen_temp, "_serialC.RDS"))
+    saveRDS(net_lst, paste0("output/data/net_lst_",scen_temp,"_noserialC.RDS"))
+    saveRDS(ts_all, paste0("output/data/network_ts_all_", scen_temp, "_noserialC.RDS"))
     # write.csv(ts_all, "output/data/network_ts_all_lowGW_direct_noserialC.csv")
     # saveRDS(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.RDS")
     # write.csv(ts_day, "output/data/network_ts_day_lowGW_direct_noserialC.csv")
@@ -524,8 +555,10 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
       ggtitle(paste0("Landscape Temperature Scenarios-", scen_temp))
     ggsave(plot = p, filename = paste0("output/figures/Cbalance_monthlyavg_", scen_temp, ".png"))
     
+    
     return(ts_all)
 }
 )#end scenario lapply
 #saveRDS(scenarios_temperature, "output/data/base_serialC.RDS")
-saveRDS(scenarios_temperature, "output/data/scenarios_temperature_noserialC.RDS")
+rm(list=setdiff(ls(), "scenarios_temperature"))
+saveRDS(scenarios_temperature, "output/data/scenarios_temperature__noserialC.RDS")

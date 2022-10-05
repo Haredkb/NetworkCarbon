@@ -105,15 +105,17 @@ if(var == "Y"){
 
 temp_sin <- readRDS("data/temp_sin.RDS")
 scen_T <- list(
-               base = temp_sin, #base
+               #base = temp_sin, #base
                #base2 = mutate(temp_sin, ymean=  ymean + 2), #base + 2
-               deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 12), #deep GW
-               shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
+               #deepGW = mutate(temp_sin, amp = 4, phase = 200, ymean = 12), #deep GW
+               #shalGW = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 12),#shallow GW
                #shalGW_40 = mutate(temp_sin, amp = 5.5, phase = 240, ymean = 12),#shallow GW
-               low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence
-               low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15)#,
+               #low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13)#minimal GW influence
+               #low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15)#,
                #low_GW_4 = mutate(temp_sin, amp = 9, phase = 200, ymean = 17),
                #shalGW_0 = mutate(temp_sin, amp = 5.5, phase = 200, ymean = 12)
+                deepGW_05 = mutate(temp_sin, amp = 4, phase = 200, ymean = 12.5), #deep GW warming scenario
+                shalGW_2 = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 14)#shallow GW warming scenario
                )
 scen <- names(scen_T) #list the scen
 
@@ -132,7 +134,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
     ############################
     #define hour time steps and units
     ##############################
-    timesteps = 6 * (24 * 365) -1 #minus one hour to end on correct day
+    timesteps = 3 * (24 * 365) -1 #minus one hour to end on correct day
     ts_units = "hour" #hour'
     # Set up model run times start dates
     #intial_dates = as.POSIXct(c("08-01-2018 00:00"), format = "%m-%d-%Y %H:%M")
