@@ -28,6 +28,8 @@ if(var == "Y"){
             net2 <- igraph::graph_from_data_frame(d=igraph::as_data_frame(net,what="edges"),
                                                   vertices=igraph::as_data_frame(net,what="vertices") %>%
                                                     arrange(up.all))
+            
+            
             V(net2)$label <- V(net)$up.all
             net <- net2
             
@@ -471,7 +473,7 @@ scenarios_temperature <- lapply(scen, function(scen_temp){
         POCbreakdown = mean(C_breakdown_gC),
         DOCseep = mean(C_gw_gC),
         POCin = mean(C_LitterIn_gC))%>%
-      pivot_longer(col = 2:4) #%>%#4)%>%
+  pivot_longer(col = 2:4) #%>%#4)%>%
     
     saveRDS(network_ts_day_df, paste0("output/data/network_ts_day_df_", scen_temp, "_serialC.RDS"))
     

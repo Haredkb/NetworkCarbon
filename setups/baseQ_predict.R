@@ -130,8 +130,19 @@ drop_na()%>%
          Jdate = yday(Dates),
          basin_id = NULL) %>%
   merge(., nodes, by.x = "stream", by.y = as.factor("stream"))
-  
-  
+
+#######
+## Plot 
+
+df_bfi %>%  
+  dplyr::filter(stream == "CWCR")%>%
+  ggplot()+
+    
+    geom_line(aes(x = Dates, y = Flow), color = "#9FC9FF", size = 2)+
+    geom_line(aes(x = Dates, y = BaseQ), color = "#338DFF", size = 2)+
+  theme_bw(base_size = 18)+
+  scale_x_date(date_labels="%b %Y",date_breaks  ="4 month") +
+  labs(x = "", y = "Streamflow (L/sec)")
 
 ####################
 
@@ -145,6 +156,10 @@ by_date <- df_bfi %>%
 Q_JDate_lm_m3hr <- do(by_date,
                             tidy( #tidy #glance #augment
                               lm(baseq_m3hr ~ lengthup_m + 0, data =.))) #control intercept at 0
+
+Q_JDate_lm_m3hr_glance <- do(by_date,
+                      glance( #augment
+                        lm(baseq_m3hr ~ lengthup_m + 0, data =.))) #control intercept at 0
 
 
 saveRDS(Q_JDate_lm_m3hr, "data/Q_JDate_lm_m3hr.RDS")

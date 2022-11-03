@@ -13,7 +13,7 @@ netset <- function(network, bq_m3hrm){
   #Watershed Parameters Wolheim 2006
   a=7.3 #NC, Heton 2011 
   b=0.45 #NC, Helton 2011
-  c=0.408 
+  c=0.408 #Wollheim 
   d=0.294
   
   # Define hydrologic inflows/outflows for each reach (m3 hr-1 per m) 
@@ -78,35 +78,47 @@ up_nodes <- function(network){
 }
 
 
-
-
-
 ## ---------- Functions used in the mass balance model --------- ##
 move_OC <- function(network, network_pre){
-  V(network)$FTOC_up <- 0
+  V(network)$ind_order <- seq(1, length(V(network)))
+  V(network)$FTOC_up_A <- 0
+  V(network)$FTOC_up_A <- 0
   V(network)$DOC_up <- 0
-  V(network)$FTOC_out <- 0
+  V(network)$FTOC_out_R <- 0
+  V(network)$FTOC_out_R <- 0
   V(network)$DOC_out <- 0
+  V(network)$FTOC_out <- 0
+  
   
   #move through nodes - this network is structured so nodes move from headwaters to outlet, thus has to be a loop (order matters)
-  for(i in 1:length(V(network))){
-
+network_serial <- lapply(seq_along(V(network)), function(i){
+  #for(i in 1:length(V(network))){
+print(V(network)$ind_order[i])
+print(V(network)$name[i])
     ##NOTE FPOC is in ADFM and DOC is in gm3
     if(V(network)[i]$up.all > 1){ #if there are contributing nodes (not orgin sites)
       up <- as.numeric(unlist(strsplit(V(network)[i]$up, split= ","))) #directly contributing nodes - assumes every timestep (here hourly, all transported carbon moves to next downstream reach)
       V(network)$DOC_up[i] <- sum(V(network_pre)$DOC_out[up], na.rm = TRUE) #sum the DOC_out from the previous timestep - amount that has come to the reach
-      V(network)$DOC_out[i] <- V(network)$DOC_up[i] + V(network)$DOC_local_gC[i] #add DOC from upstream from previous timestep to the DOC local from the current timestep
-      V(network)$FTOC_up[i] <- sum(V(network_pre)$FTOC_out[up], na.rm = TRUE)
-      V(network)$FTOC_out[i] <- V(network)$FTOC_up[i] + V(network)$FTOC_local[i]
+      V(network)$DOC_out[i] <- (V(network)$DOC_up[i] + V(network)$DOC_local_gC[i]) # * (1-exp(-V(network)$vf[i]/V(network)$HL[i])) #add DOC from upstream from previous timestep to the DOC local from the current timestep
+      # Exported carbon load to downstream reach (g d-1):
+      V(network)$FTOC_up_A[i] <- sum(V(network_pre)$FTOC_out_A[up], na.rm = TRUE)
+      V(network)$FTOC_out_A[i] <- V(network)$FTOC_up_A[i] + V(network)$FTOC_local_A[i]
+      V(network)$FTOC_up_R[i] <- sum(V(network_pre)$FTOC_out_R[up], na.rm = TRUE)
+      V(network)$FTOC_out_R[i] <- V(network)$FTOC_up_R[i] + V(network)$FTOC_local_R[i]
+      V(network)$FTOC_out[i] <- V(network)$FTOC_out_R[i] + V(network)$FTOC_out_A[i]
     }  else{#origin sites - no contributing streams
       V(network)$DOC_out[i] <- V(network)$DOC_local_gC[i]
-      V(network)$FTOC_out[i] <- V(network)$FTOC_local[i]
+      V(network)$FTOC_out_A[i] <- V(network)$FTOC_local_A[i]
+      V(network)$FTOC_out_R[i] <- V(network)$FTOC_local_R[i]
+      V(network)$FTOC_out[i] <- V(network)$FTOC_local_A[i] + V(network)$FTOC_local_R[i]
     }
+  network
+  })
 
+l = length(network_serial)  
+output = network_serial[[l]]
 
-  }
-  
-  return(network)
+  return(output)
 }
 
 

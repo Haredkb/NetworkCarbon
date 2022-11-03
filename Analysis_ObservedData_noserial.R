@@ -113,7 +113,9 @@ scen_T <- list(
                # low_GW = mutate(temp_sin, amp = 9, phase = 200, ymean = 13), #minimal GW influence
                # low_GW_2 = mutate(temp_sin, amp = 9, phase = 200, ymean = 15),
                # low_GW_4 = mutate(temp_sin, amp = 9, phase = 200, ymean = 17),
-               shalGW_0 = mutate(temp_sin, amp = 5.5, phase = 200, ymean = 12)
+               #shalGW_0 = mutate(temp_sin, amp = 5.5, phase = 200, ymean = 12)
+  deepGW_05 = mutate(temp_sin, amp = 4, phase = 200, ymean = 12.5), #deep GW warming scenario
+  shalGW_2 = mutate(temp_sin, amp = 5.5, phase = 220, ymean = 14)  #shallow GW warming scenario
                )
 scen <- names(scen_T) #list the scen
 
